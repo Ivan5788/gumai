@@ -1,3 +1,0 @@
-// Pinia is registered via @pinia/nuxt in nuxt.config.js.
-// Domain stores (market / stock / screener) will be added in later phases.
-// Market Service must receive an explicit market argument and must not read Pinia.
