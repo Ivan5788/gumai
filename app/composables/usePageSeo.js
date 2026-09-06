@@ -31,7 +31,10 @@ export function usePageSeo({ title, description, path }) {
 }
 
 export function useWebPageJsonLd({ name, description, url, extra = [] }) {
-  const siteUrl = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
+  const config = useRuntimeConfig()
+  const siteUrl = String(config.public.siteUrl).replace(/\/$/, '')
+  const siteName = config.public.siteName
+  const siteDescription = config.public.siteDescription
 
   useHead({
     script: computed(() => [
@@ -42,9 +45,9 @@ export function useWebPageJsonLd({ name, description, url, extra = [] }) {
           '@graph': [
             {
               '@type': 'WebSite',
-              name: 'StockPulse',
+              name: siteName,
               url: siteUrl,
-              description: 'Real-Time Stock Market Screener & Analysis Platform'
+              description: siteDescription
             },
             {
               '@type': 'WebPage',
@@ -53,7 +56,7 @@ export function useWebPageJsonLd({ name, description, url, extra = [] }) {
               url: unref(url),
               isPartOf: {
                 '@type': 'WebSite',
-                name: 'StockPulse'
+                name: siteName
               }
             },
             ...unref(extra)

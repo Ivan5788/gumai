@@ -1,0 +1,10 @@
+# 統一換行為 LF，避免 Windows 產生 CRLF 差異
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
