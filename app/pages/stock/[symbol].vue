@@ -82,7 +82,19 @@
 
     <section aria-labelledby="stock-chart">
       <h2 id="stock-chart">走勢圖</h2>
-      <p class="placeholder">當日走勢、日 K、週 K 與均線（MA）將顯示於此區。</p>
+      <p class="section-hint">
+        提供當日走勢、日 K、週 K 與均線（MA5／MA20／MA60）。K 線圖為互動元件，於瀏覽器載入。
+      </p>
+      <ClientOnly>
+        <StockChartPanel
+          :symbol="stock.symbol"
+          :market="stock.market"
+          :previous-close="stock.previousClose"
+        />
+        <template #fallback>
+          <p class="placeholder">走勢圖載入中…</p>
+        </template>
+      </ClientOnly>
     </section>
   </article>
 </template>
@@ -182,6 +194,13 @@ useWebPageJsonLd({
   color: $color-text-muted;
   font-size: 0.98rem;
   line-height: 1.65;
+}
+
+.section-hint {
+  margin: -#{$space-2} 0 $space-4;
+  color: $color-text-muted;
+  font-size: 0.85rem;
+  line-height: 1.6;
 }
 
 h2 {
