@@ -9,6 +9,11 @@ $color-accent: #5aa7ff;
 $color-positive: #3dd68c;
 $color-negative: #f0616d;
 
+// 股價漲跌（台灣慣例：紅漲綠跌）
+$color-up: #f5455c;
+$color-down: #21c07a;
+$color-flat: $color-text-muted;
+
 $font-sans: "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
 $font-mono: "Cascadia Code", "SF Mono", "Consolas", monospace;
 
