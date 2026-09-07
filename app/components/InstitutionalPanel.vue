@@ -17,12 +17,49 @@
         </article>
       </div>
 
+      <div class="inst__controls">
+        <div class="seg" role="group" aria-label="週期">
+          <button
+            v-for="opt in intervalOptions"
+            :key="opt.id"
+            type="button"
+            :class="{ 'is-active': interval === opt.id }"
+            @click="interval = opt.id"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+        <div class="seg" role="group" aria-label="法人">
+          <button
+            v-for="opt in whoOptions"
+            :key="opt.id"
+            type="button"
+            :class="{ 'is-active': who === opt.id }"
+            @click="who = opt.id"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+      </div>
+
+      <ClientOnly>
+        <NetFlowChart :bars="chartBars" :line="chartCumulative" :height="300" />
+        <template #fallback>
+          <p class="inst__state">買賣超走勢圖載入中…</p>
+        </template>
+      </ClientOnly>
+      <p class="inst__chart-note">
+        長條為{{ whoLabel }}每{{ interval === '1wk' ? '週' : '日' }}買賣超（紅買超、綠賣超），黃線為期間累計。
+      </p>
+
       <div class="inst__table-wrap">
         <table class="inst__table">
-          <caption class="visually-hidden">近 {{ data.days.length }} 個交易日三大法人買賣超（單位：{{ data.unit }}）</caption>
+          <caption class="visually-hidden">
+            {{ interval === '1wk' ? '每週' : '每日' }}三大法人買賣超（單位：{{ data.unit }}）
+          </caption>
           <thead>
             <tr>
-              <th scope="col">日期</th>
+              <th scope="col">{{ interval === '1wk' ? '週別' : '日期' }}</th>
               <th scope="col">外資</th>
               <th scope="col">投信</th>
               <th scope="col">自營商</th>
@@ -30,12 +67,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="day in recentDays" :key="day.date">
-              <th scope="row">{{ day.date }}</th>
-              <td :class="netClass(day.foreign)">{{ formatSigned(day.foreign, 0) }}</td>
-              <td :class="netClass(day.trust)">{{ formatSigned(day.trust, 0) }}</td>
-              <td :class="netClass(day.dealer)">{{ formatSigned(day.dealer, 0) }}</td>
-              <td :class="netClass(day.total)">{{ formatSigned(day.total, 0) }}</td>
+            <tr v-for="row in recentRows" :key="row.date">
+              <th scope="row">{{ row.date }}</th>
+              <td :class="netClass(row.foreign)">{{ formatSigned(row.foreign, 0) }}</td>
+              <td :class="netClass(row.trust)">{{ formatSigned(row.trust, 0) }}</td>
+              <td :class="netClass(row.dealer)">{{ formatSigned(row.dealer, 0) }}</td>
+              <td :class="netClass(row.total)">{{ formatSigned(row.total, 0) }}</td>
             </tr>
           </tbody>
         </table>
@@ -50,15 +87,41 @@ const props = defineProps({
   symbol: { type: String, required: true }
 })
 
-const { data, status, error } = await useApiFetch(() => `/stocks/${props.symbol}/institutional`, {
-  key: () => `inst-${props.symbol}`
-})
+const interval = ref('1d')
+const who = ref('foreign')
+
+const intervalOptions = [
+  { id: '1d', label: '日' },
+  { id: '1wk', label: '週' }
+]
+const whoOptions = [
+  { id: 'foreign', label: '外資' },
+  { id: 'trust', label: '投信' },
+  { id: 'dealer', label: '自營商' },
+  { id: 'total', label: '合計' }
+]
+const whoLabel = computed(() => whoOptions.find((o) => o.id === who.value)?.label ?? '')
+
+const { data, status, error } = await useApiFetch(
+  () => `/stocks/${props.symbol}/institutional?interval=${interval.value}`,
+  {
+    key: () => `inst-${props.symbol}-${interval.value}`,
+    watch: [interval]
+  }
+)
 
 const pending = computed(() => status.value === 'pending' && !data.value)
 
-const recentDays = computed(() => {
-  if (!data.value?.days) return []
-  return [...data.value.days].reverse()
+const rows = computed(() => data.value?.rows ?? [])
+const recentRows = computed(() => [...rows.value].reverse().slice(0, 24))
+
+const chartBars = computed(() => rows.value.map((r) => ({ time: r.date, value: r[who.value] })))
+const chartCumulative = computed(() => {
+  let acc = 0
+  return rows.value.map((r) => {
+    acc += r[who.value]
+    return { time: r.date, value: acc }
+  })
 })
 
 const summaryColumns = computed(() => {
@@ -152,6 +215,47 @@ function netClass(value) {
   }
 }
 
+.inst__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-3;
+}
+
+.seg {
+  display: flex;
+  gap: $space-1;
+  padding: $space-1;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface;
+
+  button {
+    padding: 0.35rem 0.8rem;
+    border: 0;
+    border-radius: calc(#{$radius-sm} - 0.15rem);
+    background: transparent;
+    color: $color-text-muted;
+    font-size: 0.82rem;
+    font-weight: 550;
+    cursor: pointer;
+
+    &:hover {
+      color: $color-text;
+    }
+
+    &.is-active {
+      background: $color-surface-active;
+      color: $color-text;
+    }
+  }
+}
+
+.inst__chart-note,
+.inst__note {
+  color: $color-text-muted;
+  font-size: 0.78rem;
+}
+
 .inst__table-wrap {
   overflow-x: auto;
   border: 1px solid $color-border;
@@ -196,11 +300,6 @@ function netClass(value) {
 
 .is-sell {
   color: $color-down;
-}
-
-.inst__note {
-  color: $color-text-muted;
-  font-size: 0.78rem;
 }
 
 .visually-hidden {

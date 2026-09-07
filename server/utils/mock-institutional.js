@@ -4,8 +4,30 @@
 
 import { makeRng, round, tradingDates } from './mock-history'
 
-// 三大法人：外資、投信、自營商的每日買賣超（單位：張），近 tradingDays 日。
-export function buildMockInstitutional(stock, { tradingDaysCount = 20 } = {}) {
+function mondayOf(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`)
+  const day = d.getUTCDay()
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day))
+  return d.toISOString().slice(0, 10)
+}
+
+function aggregateWeekly(days) {
+  const map = new Map()
+  for (const d of days) {
+    const key = mondayOf(d.date)
+    const acc = map.get(key) || { date: key, foreign: 0, trust: 0, dealer: 0, total: 0 }
+    acc.foreign += d.foreign
+    acc.trust += d.trust
+    acc.dealer += d.dealer
+    acc.total += d.total
+    map.set(key, acc)
+  }
+  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
+}
+
+// 三大法人：外資、投信、自營商的買賣超（單位：張）。
+// interval: '1d'（每日，近 60 交易日）或 '1wk'（每週彙總）。
+export function buildMockInstitutional(stock, { interval = '1d' } = {}) {
   if (stock.market !== 'TW') {
     return {
       symbol: stock.symbol,
@@ -17,8 +39,8 @@ export function buildMockInstitutional(stock, { tradingDaysCount = 20 } = {}) {
   }
 
   const rng = makeRng(`${stock.symbol}:institutional`)
-  const dates = tradingDates(tradingDaysCount, 1, true)
-  const scale = 1 + (makeRng(stock.symbol)() * 8) // 不同股票量能差異
+  const dates = tradingDates(60, 1, true)
+  const scale = 1 + makeRng(stock.symbol)() * 8 // 不同股票量能差異
 
   const days = dates.map((date) => {
     const foreign = Math.round((rng() - 0.48) * 9000 * scale)
@@ -39,12 +61,15 @@ export function buildMockInstitutional(stock, { tradingDaysCount = 20 } = {}) {
     }
   }
 
+  const normalizedInterval = interval === '1wk' ? '1wk' : '1d'
+
   return {
     symbol: stock.symbol,
     market: stock.market,
     available: true,
     unit: '張',
-    days,
+    interval: normalizedInterval,
+    rows: normalizedInterval === '1wk' ? aggregateWeekly(days) : days,
     summary: {
       d1: makeSummary(1),
       d5: makeSummary(5),

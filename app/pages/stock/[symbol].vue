@@ -108,7 +108,7 @@
     <section aria-labelledby="stock-institutional">
       <h2 id="stock-institutional">三大法人買賣超</h2>
       <p class="section-hint">
-        外資、投信、自營商近 20 個交易日的每日買賣超與近 1／5／20 日累計（盤後彙總）。
+        外資、投信、自營商的每日／每週買賣超走勢與累計（盤後彙總）。
       </p>
       <InstitutionalPanel :symbol="stock.symbol" />
     </section>
