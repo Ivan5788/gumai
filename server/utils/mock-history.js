@@ -2,7 +2,7 @@
 // 依股票代號決定亂數種子，讓同一檔股票每次結果一致（利於 SSR / 快取）。
 // 未來改由 Spring Boot 提供真實資料後即可移除。
 
-function makeRng(seedStr) {
+export function makeRng(seedStr) {
   let seed = 0
   for (let i = 0; i < seedStr.length; i += 1) {
     seed = (seed * 31 + seedStr.charCodeAt(i)) | 0
@@ -18,17 +18,17 @@ function makeRng(seedStr) {
   }
 }
 
-function round(value, digits = 2) {
+export function round(value, digits = 2) {
   const factor = 10 ** digits
   return Math.round(value * factor) / factor
 }
 
-function ymd(date) {
+export function ymd(date) {
   return date.toISOString().slice(0, 10)
 }
 
 // 產生交易日日期序列（由最近的交易日往回推 count 個），日 K 跳過週末。
-function tradingDates(count, stepDays, weekdaysOnly) {
+export function tradingDates(count, stepDays, weekdaysOnly) {
   const dates = []
   const cursor = new Date()
   cursor.setUTCHours(0, 0, 0, 0)

@@ -104,6 +104,22 @@
         </template>
       </ClientOnly>
     </section>
+
+    <section aria-labelledby="stock-institutional">
+      <h2 id="stock-institutional">三大法人買賣超</h2>
+      <p class="section-hint">
+        外資、投信、自營商近 20 個交易日的每日買賣超與近 1／5／20 日累計（盤後彙總）。
+      </p>
+      <InstitutionalPanel :symbol="stock.symbol" />
+    </section>
+
+    <section aria-labelledby="stock-holders">
+      <h2 id="stock-holders">大戶與散戶持股比例</h2>
+      <p class="section-hint">
+        依集保戶股權分散表，{{ stock.name }}的持股級距分布與大戶／散戶占比。
+      </p>
+      <HoldersPanel :symbol="stock.symbol" />
+    </section>
   </article>
 </template>
 
@@ -145,7 +161,7 @@ const title = computed(
 )
 const description = computed(
   () =>
-    `查看 ${stock.value.name}（${stock.value.symbol}）即時股價、漲跌與成交量，以及歷史走勢、日 K、週 K、當日走勢與均線技術分析。`
+    `查看 ${stock.value.name}（${stock.value.symbol}）即時股價、漲跌與成交量，歷史走勢、日 K、週 K 與均線技術分析，以及三大法人買賣超與大戶散戶持股比例。`
 )
 const path = computed(() => `/stock/${stock.value.symbol}`)
 
