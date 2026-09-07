@@ -6,13 +6,15 @@
 // lightweight-charts 是 client-only（需要 DOM / canvas）。
 // 這個元件只會被放在 <ClientOnly> 內使用。
 const props = defineProps({
-  // 'candlestick'（日K / 週K）或 'area'（當日走勢）
+  // 'candlestick'（日K / 週K / 60分K）或 'area'（當日走勢）
   type: { type: String, default: 'candlestick' },
   candles: { type: Array, default: () => [] },
   line: { type: Array, default: () => [] },
   maLines: { type: Array, default: () => [] },
   showVolume: { type: Boolean, default: true },
   referencePrice: { type: Number, default: null },
+  // 時間軸是否顯示到時分（60分K、當日走勢）
+  showTime: { type: Boolean, default: false },
   height: { type: Number, default: 360 }
 })
 
@@ -60,7 +62,8 @@ async function buildChart() {
     rightPriceScale: { borderColor: THEME.border },
     timeScale: {
       borderColor: THEME.border,
-      timeVisible: props.type === 'area',
+      timeVisible: props.type === 'area' || props.showTime,
+      secondsVisible: false,
       rightOffset: 3
     },
     crosshair: { mode: lib.CrosshairMode.Normal },

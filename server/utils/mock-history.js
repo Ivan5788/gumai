@@ -44,27 +44,72 @@ export function tradingDates(count, stepDays, weekdaysOnly) {
   return dates.reverse()
 }
 
-// 產生日 / 週 K 線。interval: '1d' | '1wk'
-export function buildMockCandles(stock, { interval = '1d', limit = 120 } = {}) {
-  const rng = makeRng(`${stock.symbol}:${interval}`)
+// 產生某市場交易時段內的整點時間戳（unix 秒），往回取 count 個，跳過週末。
+function sessionHourlyTimes(count, market) {
+  const timezone = (MARKETS[market] || MARKETS.TW).timezone
+  const session = MARKET_SESSIONS[market] || MARKET_SESSIONS.TW
+  const openHour = Number(session.open.split(':')[0])
+  const closeHour = Number(session.close.split(':')[0])
+
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short',
+    hour: '2-digit',
+    hour12: false
+  })
+
+  const times = []
+  const cursor = new Date()
+  cursor.setMinutes(0, 0, 0)
+
+  let guard = 0
+  while (times.length < count && guard < count * 12 + 800) {
+    guard += 1
+    const parts = fmt.formatToParts(cursor)
+    const weekday = parts.find((p) => p.type === 'weekday').value
+    const hour = Number(parts.find((p) => p.type === 'hour').value) % 24
+    if (weekday !== 'Sat' && weekday !== 'Sun' && hour >= openHour && hour <= closeHour) {
+      times.push(Math.floor(cursor.getTime() / 1000))
+    }
+    cursor.setHours(cursor.getHours() - 1)
+  }
+
+  return times.reverse()
+}
+
+// 產生 K 線。interval: '1d' | '1wk' | '60m'
+export function buildMockCandles(stock, { interval = '1d', limit } = {}) {
   const isWeekly = interval === '1wk'
-  const count = Math.min(Math.max(Number(limit) || 120, 20), 500)
-  const dates = tradingDates(count, isWeekly ? 7 : 1, !isWeekly)
+  const isHourly = interval === '60m'
+  const rng = makeRng(`${stock.symbol}:${interval}`)
+
+  const defaultLimit = isWeekly ? 80 : 120
+  const count = Math.min(Math.max(Number(limit) || defaultLimit, 20), 600)
+
+  const times = isHourly
+    ? sessionHourlyTimes(count, stock.market)
+    : tradingDates(count, isWeekly ? 7 : 1, !isWeekly)
+
+  const volatility = isHourly ? 0.012 : 0.035
+  const wickFactor = isHourly ? 0.01 : 0.02
+  const volBase = stock.market === 'TW'
+    ? (isHourly ? 5000 : 20000)
+    : (isHourly ? 2000000 : 8000000)
 
   // 由第一根往後走，最後一根收在 previousClose
   const candles = []
-  let close = stock.previousClose * (0.78 + rng() * 0.15)
+  let close = stock.previousClose * (0.82 + rng() * 0.12)
 
-  for (let i = 0; i < dates.length; i += 1) {
-    const drift = (rng() - 0.47) * 0.035
+  for (let i = 0; i < times.length; i += 1) {
+    const drift = (rng() - 0.47) * volatility
     const open = close
     close = Math.max(1, open * (1 + drift))
-    const high = Math.max(open, close) * (1 + rng() * 0.02)
-    const low = Math.min(open, close) * (1 - rng() * 0.02)
-    const volume = Math.round((0.6 + rng() * 1.8) * (stock.market === 'TW' ? 20000 : 8000000))
+    const high = Math.max(open, close) * (1 + rng() * wickFactor)
+    const low = Math.min(open, close) * (1 - rng() * wickFactor)
+    const volume = Math.round((0.6 + rng() * 1.8) * volBase)
 
     candles.push({
-      time: dates[i],
+      time: times[i],
       open: round(open),
       high: round(high),
       low: round(low),
@@ -73,9 +118,18 @@ export function buildMockCandles(stock, { interval = '1d', limit = 120 } = {}) {
     })
   }
 
-  // 收斂最後一根到 previousClose，讓與報價一致
   const last = candles[candles.length - 1]
-  if (last) {
+  if (last && isHourly) {
+    // 60 分 K：整條等比縮放，讓最後收盤 ≈ previousClose，避免結尾突刺
+    const ratio = stock.previousClose / last.close
+    candles.forEach((c) => {
+      c.open = round(c.open * ratio)
+      c.high = round(c.high * ratio)
+      c.low = round(c.low * ratio)
+      c.close = round(c.close * ratio)
+    })
+  } else if (last) {
+    // 日 / 週 K：收斂最後一根到 previousClose，讓與報價一致
     last.close = stock.previousClose
     last.high = round(Math.max(last.high, last.close))
     last.low = round(Math.min(last.low, last.close))

@@ -41,9 +41,12 @@ const props = defineProps({
 
 const tabs = [
   { id: 'intraday', label: '當日走勢' },
+  { id: '60m', label: '60分K' },
   { id: 'daily', label: '日K' },
   { id: 'weekly', label: '週K' }
 ]
+
+const INTERVAL_BY_TAB = { '60m': '60m', daily: '1d', weekly: '1wk' }
 
 const activeTab = ref('daily')
 const activeMa = ref([5, 20, 60])
@@ -51,8 +54,7 @@ const showMa = computed(() => activeTab.value !== 'intraday')
 
 const endpoint = computed(() => {
   if (activeTab.value === 'intraday') return `/stocks/${props.symbol}/intraday`
-  const interval = activeTab.value === 'weekly' ? '1wk' : '1d'
-  return `/stocks/${props.symbol}/history?interval=${interval}`
+  return `/stocks/${props.symbol}/history?interval=${INTERVAL_BY_TAB[activeTab.value]}`
 })
 
 const { data, status, error, refresh } = useApiFetch(endpoint, {
@@ -116,6 +118,7 @@ const chartProps = computed(() => {
       return { label: preset.label, color: preset.color, data: maLine(candles, period) }
     }),
     showVolume: true,
+    showTime: activeTab.value === '60m',
     height: 380
   }
 })
