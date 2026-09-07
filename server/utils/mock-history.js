@@ -45,7 +45,7 @@ export function tradingDates(count, stepDays, weekdaysOnly) {
 }
 
 // 產生某市場交易時段內的整點時間戳（unix 秒），往回取 count 個，跳過週末。
-function sessionHourlyTimes(count, market) {
+export function sessionHourlyTimes(count, market) {
   const timezone = (MARKETS[market] || MARKETS.TW).timezone
   const session = MARKET_SESSIONS[market] || MARKET_SESSIONS.TW
   const openHour = Number(session.open.split(':')[0])

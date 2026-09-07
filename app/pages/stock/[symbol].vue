@@ -91,7 +91,7 @@
     <section aria-labelledby="stock-chart">
       <h2 id="stock-chart">走勢圖</h2>
       <p class="section-hint">
-        提供當日走勢、日 K、週 K 與均線（MA5／MA20／MA60）。K 線圖為互動元件，於瀏覽器載入。
+        提供當日走勢、60 分 K、日 K、週 K 與均線（MA5／MA20／MA60）。K 線圖為互動元件，於瀏覽器載入。
       </p>
       <ClientOnly>
         <StockChartPanel
@@ -103,6 +103,14 @@
           <p class="placeholder">走勢圖載入中…</p>
         </template>
       </ClientOnly>
+    </section>
+
+    <section aria-labelledby="stock-bigpower">
+      <h2 id="stock-bigpower">大戶買賣力</h2>
+      <p class="section-hint">
+        依（特大單＋大單）×（外盤－內盤）估算的大戶買賣力道，可切日／週／60 分。
+      </p>
+      <BigPowerPanel :symbol="stock.symbol" />
     </section>
 
     <section aria-labelledby="stock-institutional">
