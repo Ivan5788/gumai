@@ -2,7 +2,7 @@
 // 三大法人與集保股權分散為台股專屬資料；美股回傳 available: false。
 // 未來由 Spring Boot 對接證交所 / 集保 / 資料商後即可移除。
 
-import { makeRng, round, tradingDates } from './mock-history'
+import { makeRng, tradingDates } from './mock-history'
 
 function mondayOf(dateStr) {
   const d = new Date(`${dateStr}T00:00:00Z`)
@@ -79,57 +79,64 @@ export function buildMockInstitutional(stock, { interval = '1d' } = {}) {
   }
 }
 
-// 大戶／散戶持股分布（模擬集保戶股權分散表）。
-export function buildMockHolders(stock) {
+function aggregateHoldersWeekly(days) {
+  const map = new Map()
+  for (const d of days) {
+    const key = mondayOf(d.date)
+    const acc =
+      map.get(key) ||
+      { date: key, bigShares: d.bigShares, bigNet: 0, retailShares: d.retailShares, retailNet: 0 }
+    acc.bigNet += d.bigNet
+    acc.retailNet += d.retailNet
+    acc.bigShares = d.bigShares // 迭代為日期升冪，最後一筆即週末水位
+    acc.retailShares = d.retailShares
+    map.set(key, acc)
+  }
+  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
+}
+
+// 大戶（持股 ≥ 1,000 張）與散戶（持股 ≤ 100 張）的每日持股量與買賣超（單位：張）。
+// interval: '1d'（每日，近 60 交易日）或 '1wk'（每週彙總）。
+// 真實資料：集保 TDCC 股權分散為每週；「每日」需資料商加值資料。
+export function buildMockHolders(stock, { interval = '1d' } = {}) {
   if (stock.market !== 'TW') {
     return {
       symbol: stock.symbol,
       market: stock.market,
       available: false,
-      reason: '集保戶股權分散為台股資料，美股請參考機構持股（13F）等資訊。',
+      reason: '大戶／散戶持股為台股（集保）資料，美股請參考機構持股（13F）等資訊。',
       isMock: true
     }
   }
 
   const rng = makeRng(`${stock.symbol}:holders`)
-  const asOf = tradingDates(6, 5, true)[0] // 約一週前的週五
+  const dates = tradingDates(60, 1, true)
+  const scale = 0.5 + makeRng(`${stock.symbol}:hf`)() * 4
 
-  // 級距（持股張數）：占比由小到大遞增，最後正規化為 100%
-  const bandDefs = [
-    { label: '1–5 張', weight: 3 + rng() * 4 },
-    { label: '6–10 張', weight: 2 + rng() * 3 },
-    { label: '11–50 張', weight: 4 + rng() * 5 },
-    { label: '51–100 張', weight: 3 + rng() * 4 },
-    { label: '101–400 張', weight: 5 + rng() * 6 },
-    { label: '401–1,000 張', weight: 6 + rng() * 8 },
-    { label: '1,001 張以上', weight: 20 + rng() * 30 }
-  ]
+  let big = Math.round(7_000_000 * scale)
+  let retail = Math.round(2_200_000 * scale)
 
-  const weightTotal = bandDefs.reduce((acc, b) => acc + b.weight, 0)
-  const bands = bandDefs.map((b) => {
-    const percent = round((b.weight / weightTotal) * 100, 2)
-    return {
-      label: b.label,
-      percent,
-      holders: Math.max(1, Math.round((b.weight / weightTotal) * (8000 + rng() * 40000)))
-    }
+  const days = dates.map((date) => {
+    // 大戶與散戶多半反向：大戶買超時散戶常同步賣超
+    const bigNet = Math.round((rng() - 0.47) * 4000 * scale)
+    const retailNet = Math.round(-bigNet * (0.4 + rng() * 0.5) + (rng() - 0.5) * 1500 * scale)
+    big = Math.max(1, big + bigNet)
+    retail = Math.max(1, retail + retailNet)
+    return { date, bigShares: big, bigNet, retailShares: retail, retailNet }
   })
 
-  // 大戶 = 400 張以上，散戶 = 400 張以下
-  const bigPercent = round(
-    bands.slice(-2).reduce((acc, b) => acc + b.percent, 0),
-    2
-  )
-  const retailPercent = round(100 - bigPercent, 2)
+  const normalizedInterval = interval === '1wk' ? '1wk' : '1d'
+  const latest = days[days.length - 1]
 
   return {
     symbol: stock.symbol,
     market: stock.market,
     available: true,
-    asOf,
-    threshold: '400 張',
-    concentration: { bigPercent, retailPercent },
-    bands,
+    unit: '張',
+    interval: normalizedInterval,
+    thresholds: { big: '1,000 張以上', retail: '100 張以下' },
+    rows: normalizedInterval === '1wk' ? aggregateHoldersWeekly(days) : days,
+    latest: { bigShares: latest.bigShares, retailShares: latest.retailShares },
     isMock: true
   }
 }

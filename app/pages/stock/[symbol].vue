@@ -114,9 +114,9 @@
     </section>
 
     <section aria-labelledby="stock-holders">
-      <h2 id="stock-holders">大戶與散戶持股比例</h2>
+      <h2 id="stock-holders">大戶與散戶持股變化</h2>
       <p class="section-hint">
-        依集保戶股權分散表，{{ stock.name }}的持股級距分布與大戶／散戶占比。
+        大戶（持股 1,000 張以上）與散戶（持股 100 張以下）的每日／每週持股量與買賣超。
       </p>
       <HoldersPanel :symbol="stock.symbol" />
     </section>
@@ -161,7 +161,7 @@ const title = computed(
 )
 const description = computed(
   () =>
-    `查看 ${stock.value.name}（${stock.value.symbol}）即時股價、漲跌與成交量，歷史走勢、日 K、週 K 與均線技術分析，以及三大法人買賣超與大戶散戶持股比例。`
+    `查看 ${stock.value.name}（${stock.value.symbol}）即時股價、漲跌與成交量，歷史走勢、日 K、週 K、60 分 K 與均線技術分析，以及三大法人買賣超與大戶散戶持股變化。`
 )
 const path = computed(() => `/stock/${stock.value.symbol}`)
 

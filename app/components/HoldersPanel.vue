@@ -1,52 +1,84 @@
 <template>
   <div class="holders">
-    <p v-if="pending" class="holders__state">持股分布資料載入中…</p>
-    <p v-else-if="error" class="holders__state">持股分布資料載入失敗。</p>
+    <p v-if="pending" class="holders__state">大戶／散戶資料載入中…</p>
+    <p v-else-if="error" class="holders__state">大戶／散戶資料載入失敗。</p>
     <p v-else-if="data && !data.available" class="holders__state">{{ data.reason }}</p>
 
     <template v-else-if="data">
-      <div class="holders__split">
-        <div class="holders__bar" role="img" :aria-label="splitLabel">
-          <span class="holders__bar-big" :style="{ width: `${data.concentration.bigPercent}%` }" />
-          <span class="holders__bar-retail" :style="{ width: `${data.concentration.retailPercent}%` }" />
-        </div>
-        <dl class="holders__legend">
-          <div>
-            <dt><span class="dot dot--big" aria-hidden="true" />大戶（{{ data.threshold }}以上）</dt>
-            <dd>{{ data.concentration.bigPercent.toFixed(1) }}%</dd>
-          </div>
-          <div>
-            <dt><span class="dot dot--retail" aria-hidden="true" />散戶（{{ data.threshold }}以下）</dt>
-            <dd>{{ data.concentration.retailPercent.toFixed(1) }}%</dd>
-          </div>
-        </dl>
+      <div class="holders__summary">
+        <article class="holders__card">
+          <h3>大戶目前持股（{{ data.thresholds.big }}）</h3>
+          <p>{{ formatNumber(data.latest.bigShares) }} 張</p>
+        </article>
+        <article class="holders__card">
+          <h3>散戶目前持股（{{ data.thresholds.retail }}）</h3>
+          <p>{{ formatNumber(data.latest.retailShares) }} 張</p>
+        </article>
       </div>
+
+      <div class="holders__controls">
+        <div class="seg" role="group" aria-label="週期">
+          <button
+            v-for="opt in intervalOptions"
+            :key="opt.id"
+            type="button"
+            :class="{ 'is-active': interval === opt.id }"
+            @click="interval = opt.id"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+        <div class="seg" role="group" aria-label="對象">
+          <button
+            v-for="opt in whoOptions"
+            :key="opt.id"
+            type="button"
+            :class="{ 'is-active': who === opt.id }"
+            @click="who = opt.id"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+      </div>
+
+      <ClientOnly>
+        <NetFlowChart :bars="chartBars" :line="chartLevel" :height="300" />
+        <template #fallback>
+          <p class="holders__state">持股走勢圖載入中…</p>
+        </template>
+      </ClientOnly>
+      <p class="holders__note">
+        長條為{{ whoLabel }}每{{ interval === '1wk' ? '週' : '日' }}買賣超（紅買超、綠賣超），黃線為持股量水位。
+      </p>
 
       <div class="holders__table-wrap">
         <table class="holders__table">
-          <caption class="visually-hidden">持股級距分布，資料日 {{ data.asOf }}</caption>
+          <caption class="visually-hidden">
+            {{ interval === '1wk' ? '每週' : '每日' }}大戶與散戶持股量與買賣超（單位：{{ data.unit }}）
+          </caption>
           <thead>
             <tr>
-              <th scope="col">持股級距</th>
-              <th scope="col">占股權比例</th>
-              <th scope="col">股東人數</th>
+              <th scope="col">{{ interval === '1wk' ? '週別' : '日期' }}</th>
+              <th scope="col">大戶持股</th>
+              <th scope="col">大戶增減</th>
+              <th scope="col">散戶持股</th>
+              <th scope="col">散戶增減</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="band in data.bands" :key="band.label">
-              <th scope="row">{{ band.label }}</th>
-              <td>
-                <span class="holders__cell">
-                  <span class="holders__cell-bar" :style="{ width: `${Math.min(band.percent, 100)}%` }" />
-                  {{ band.percent.toFixed(2) }}%
-                </span>
-              </td>
-              <td>{{ formatNumber(band.holders) }}</td>
+            <tr v-for="row in recentRows" :key="row.date">
+              <th scope="row">{{ row.date }}</th>
+              <td>{{ formatNumber(row.bigShares) }}</td>
+              <td :class="netClass(row.bigNet)">{{ formatSigned(row.bigNet, 0) }}</td>
+              <td>{{ formatNumber(row.retailShares) }}</td>
+              <td :class="netClass(row.retailNet)">{{ formatSigned(row.retailNet, 0) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="holders__note">資料日 {{ data.asOf }}。示範資料，模擬集保戶股權分散表，週更新。</p>
+      <p class="holders__note">
+        單位：{{ data.unit }}。大戶＝持股 {{ data.thresholds.big }}，散戶＝持股 {{ data.thresholds.retail }}。示範資料。
+      </p>
     </template>
   </div>
 </template>
@@ -56,16 +88,43 @@ const props = defineProps({
   symbol: { type: String, required: true }
 })
 
-const { data, status, error } = await useApiFetch(() => `/stocks/${props.symbol}/holders`, {
-  key: () => `holders-${props.symbol}`
-})
+const interval = ref('1d')
+const who = ref('big')
+
+const intervalOptions = [
+  { id: '1d', label: '日' },
+  { id: '1wk', label: '週' }
+]
+const whoOptions = [
+  { id: 'big', label: '大戶' },
+  { id: 'retail', label: '散戶' }
+]
+const whoLabel = computed(() => whoOptions.find((o) => o.id === who.value)?.label ?? '')
+
+const { data, status, error } = await useApiFetch(
+  () => `/stocks/${props.symbol}/holders?interval=${interval.value}`,
+  {
+    key: () => `holders-${props.symbol}-${interval.value}`,
+    watch: [interval]
+  }
+)
 
 const pending = computed(() => status.value === 'pending' && !data.value)
 
-const splitLabel = computed(() => {
-  if (!data.value?.available) return ''
-  return `大戶 ${data.value.concentration.bigPercent.toFixed(1)}%、散戶 ${data.value.concentration.retailPercent.toFixed(1)}%`
-})
+const rows = computed(() => data.value?.rows ?? [])
+const recentRows = computed(() => [...rows.value].reverse().slice(0, 24))
+
+const sharesKey = computed(() => (who.value === 'big' ? 'bigShares' : 'retailShares'))
+const netKey = computed(() => (who.value === 'big' ? 'bigNet' : 'retailNet'))
+
+const chartBars = computed(() => rows.value.map((r) => ({ time: r.date, value: r[netKey.value] })))
+const chartLevel = computed(() => rows.value.map((r) => ({ time: r.date, value: r[sharesKey.value] })))
+
+function netClass(value) {
+  if (value > 0) return 'is-buy'
+  if (value < 0) return 'is-sell'
+  return ''
+}
 </script>
 
 <style lang="scss" scoped>
@@ -83,68 +142,75 @@ const splitLabel = computed(() => {
   font-size: 0.9rem;
 }
 
-.holders__split {
-  padding: $space-5;
+.holders__summary {
+  display: grid;
+  gap: $space-3;
+  grid-template-columns: 1fr;
+
+  @include tablet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.holders__card {
+  padding: $space-4;
   border: 1px solid $color-border;
   border-radius: $radius-md;
   background: $color-surface;
-}
 
-.holders__bar {
-  display: flex;
-  height: 0.75rem;
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.holders__bar-big {
-  background: $color-accent;
-}
-
-.holders__bar-retail {
-  background: $color-surface-active;
-}
-
-.holders__legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $space-3 $space-6;
-  margin: $space-4 0 0;
-
-  div {
-    display: flex;
-    align-items: baseline;
-    gap: $space-2;
-  }
-
-  dt {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+  h3 {
+    margin-bottom: $space-2;
+    font-size: 0.8rem;
+    font-weight: 600;
     color: $color-text-muted;
-    font-size: 0.85rem;
   }
 
-  dd {
+  p {
     margin: 0;
+    font-size: 1.2rem;
     font-weight: 650;
     font-variant-numeric: tabular-nums;
   }
 }
 
-.dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  flex-shrink: 0;
+.holders__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-3;
+}
 
-  &--big {
-    background: $color-accent;
-  }
+.seg {
+  display: flex;
+  gap: $space-1;
+  padding: $space-1;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface;
 
-  &--retail {
-    background: $color-surface-active;
+  button {
+    padding: 0.35rem 0.8rem;
+    border: 0;
+    border-radius: calc(#{$radius-sm} - 0.15rem);
+    background: transparent;
+    color: $color-text-muted;
+    font-size: 0.82rem;
+    font-weight: 550;
+    cursor: pointer;
+
+    &:hover {
+      color: $color-text;
+    }
+
+    &.is-active {
+      background: $color-surface-active;
+      color: $color-text;
+    }
   }
+}
+
+.holders__note {
+  color: $color-text-muted;
+  font-size: 0.78rem;
 }
 
 .holders__table-wrap {
@@ -167,6 +233,8 @@ const splitLabel = computed(() => {
   }
 
   thead th {
+    position: sticky;
+    top: 0;
     background: $color-surface-active;
     color: $color-text-muted;
     font-weight: 600;
@@ -183,29 +251,12 @@ const splitLabel = computed(() => {
   }
 }
 
-.holders__cell {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 5rem;
-  padding-right: 0.2rem;
+.is-buy {
+  color: $color-up;
 }
 
-.holders__cell-bar {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 1.1rem;
-  background: rgba($color-accent, 0.18);
-  border-radius: $radius-sm;
-  z-index: 0;
-}
-
-.holders__note {
-  color: $color-text-muted;
-  font-size: 0.78rem;
+.is-sell {
+  color: $color-down;
 }
 
 .visually-hidden {
