@@ -1,17 +1,4 @@
-// 技術指標計算。自動匯入。
-
-// 簡單移動平均（MA / SMA）。回傳與輸入等長的陣列，前 period-1 筆為 null。
-export function sma(values, period) {
-  const out = []
-  let sum = 0
-  for (let i = 0; i < values.length; i += 1) {
-    const v = Number(values[i]) || 0
-    sum += v
-    if (i >= period) sum -= Number(values[i - period]) || 0
-    out.push(i >= period - 1 ? sum / period : null)
-  }
-  return out
-}
+// 技術指標（畫面用）。sma / mean 已在 shared/utils/indicators.js 自動匯入。
 
 // 由 K 線陣列產生某條 MA 的 { time, value } 序列（跳過 null）。
 export function maLine(candles, period) {

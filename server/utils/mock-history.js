@@ -78,7 +78,7 @@ export function sessionHourlyTimes(count, market) {
 }
 
 // 產生 K 線。interval: '1d' | '1wk' | '60m'
-export function buildMockCandles(stock, { interval = '1d', limit } = {}) {
+export function buildMockCandles(stock, { interval = '1d', limit, pinLast = true } = {}) {
   const isWeekly = interval === '1wk'
   const isHourly = interval === '60m'
   const rng = makeRng(`${stock.symbol}:${interval}`)
@@ -102,11 +102,15 @@ export function buildMockCandles(stock, { interval = '1d', limit } = {}) {
 
   for (let i = 0; i < times.length; i += 1) {
     const drift = (rng() - 0.47) * volatility
-    const open = close
+    // 偶爾跳空（開盤價偏離前一收盤；偏多）
+    const gap = !isHourly && rng() < 0.08 ? (rng() - 0.3) * 0.055 : 0
+    const open = Math.max(1, close * (1 + gap))
     close = Math.max(1, open * (1 + drift))
     const high = Math.max(open, close) * (1 + rng() * wickFactor)
     const low = Math.min(open, close) * (1 - rng() * wickFactor)
-    const volume = Math.round((0.6 + rng() * 1.8) * volBase)
+    // 偶爾爆量
+    const volumeSpike = rng() < 0.06 ? 2.6 + rng() * 2 : 1
+    const volume = Math.round((0.6 + rng() * 1.8) * volBase * volumeSpike)
 
     candles.push({
       time: times[i],
@@ -118,9 +122,11 @@ export function buildMockCandles(stock, { interval = '1d', limit } = {}) {
     })
   }
 
+  // pinLast：讓最後收盤 ≈ previousClose，與報價一致（看盤用）。
+  // 選股引擎用 pinLast:false，讓最後一根是自然的隨機漫步延續，技術訊號才正確。
   const last = candles[candles.length - 1]
-  if (last && isHourly) {
-    // 60 分 K：整條等比縮放，讓最後收盤 ≈ previousClose，避免結尾突刺
+  if (last && pinLast && isHourly) {
+    // 60 分 K：整條等比縮放，避免結尾突刺
     const ratio = stock.previousClose / last.close
     candles.forEach((c) => {
       c.open = round(c.open * ratio)
@@ -128,8 +134,7 @@ export function buildMockCandles(stock, { interval = '1d', limit } = {}) {
       c.low = round(c.low * ratio)
       c.close = round(c.close * ratio)
     })
-  } else if (last) {
-    // 日 / 週 K：收斂最後一根到 previousClose，讓與報價一致
+  } else if (last && pinLast) {
     last.close = stock.previousClose
     last.high = round(Math.max(last.high, last.close))
     last.low = round(Math.min(last.low, last.close))
