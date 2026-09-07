@@ -27,6 +27,45 @@ export const MARKET_CODES = Object.keys(MARKETS)
 
 export const DEFAULT_MARKET = 'TW'
 
+// 各市場的正常交易時段（當地時間，24 小時制）
+export const MARKET_SESSIONS = {
+  TW: { open: '09:00', close: '13:30' },
+  US: { open: '09:30', close: '16:00' }
+}
+
+// 取得某時區的當地星期與分鐘數（00:00 起算）
+function localWallClock(timezone, date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(date)
+
+  const get = (type) => parts.find((p) => p.type === type)?.value
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+  const hour = Number(get('hour')) % 24
+  const minute = Number(get('minute'))
+  return { weekday: weekdayMap[get('weekday')], minutes: hour * 60 + minute }
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+// 市場目前是否為交易時段（不含國定假日，僅供 mock / 顯示用）
+export function isMarketOpen(code, date = new Date()) {
+  const market = MARKETS[code]
+  const session = MARKET_SESSIONS[code]
+  if (!market || !session) return false
+
+  const { weekday, minutes } = localWallClock(market.timezone, date)
+  if (weekday === 0 || weekday === 6) return false
+  return minutes >= toMinutes(session.open) && minutes < toMinutes(session.close)
+}
+
 // 正規化使用者輸入的股票代號
 export function normalizeSymbol(raw) {
   return String(raw || '')

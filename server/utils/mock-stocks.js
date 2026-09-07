@@ -33,26 +33,49 @@ function round(value, digits = 2) {
   return Math.round(value * factor) / factor
 }
 
-// 由 previousClose 產生一組穩定（依代號決定）的假報價，
-// 讓 SSR 與 hydration 結果一致、也利於 SWR 快取。
-// 真實即時報價之後會由後端提供，並在瀏覽器端更新。
-export function buildMockQuote(stock) {
+function ymd(date) {
+  return date.toISOString().slice(0, 10)
+}
+
+// 產生「會隨時間緩慢變動」的假報價。
+// 以代號決定相位、以現在時間決定波形，讓連續輪詢看得到價格移動，
+// 但同一秒內多次呼叫結果一致。真實即時報價之後由後端（WebSocket / API）提供。
+export function buildLiveQuote(stock) {
   const seed = hashString(stock.symbol)
-  const drift = ((seed % 1000) / 1000 - 0.5) * 0.06 // 約 -3% ~ +3%
-  const price = round(stock.previousClose * (1 + drift))
+  const phase = (seed % 628) / 100
+  const now = Date.now()
+  const t = now / 1000
+
+  const wave = Math.sin(t / 120 + phase) * 0.014
+  const noise = (Math.sin(t / 5 + phase) + Math.sin(t / 2.1 + phase * 3)) * 0.0012
+  const price = Math.max(0.01, round(stock.previousClose * (1 + wave + noise)))
+
+  const openSeed = hashString(`${stock.symbol}:${ymd(new Date(now))}`)
+  const open = round(stock.previousClose * (1 + ((openSeed % 200) / 10000 - 0.01)))
+
   const change = round(price - stock.previousClose)
   const changePercent = round((change / stock.previousClose) * 100)
+
+  const envelope = stock.previousClose * 0.016
+  const high = round(Math.max(price, open, stock.previousClose + Math.abs(Math.sin(phase)) * envelope))
+  const low = round(Math.min(price, open, stock.previousClose - Math.abs(Math.cos(phase)) * envelope))
+
+  // 成交量隨當日經過時間粗略累積
+  const dayFraction = (now % 86400000) / 86400000
+  const baseVolume = stock.market === 'TW' ? 60000 : 25000000
+  const volume = Math.round(baseVolume * (0.15 + dayFraction) * (0.8 + (seed % 40) / 100))
 
   return {
     price,
     change,
     changePercent,
-    open: round(stock.previousClose * (1 + drift * 0.3)),
-    high: round(Math.max(price, stock.previousClose) * 1.01),
-    low: round(Math.min(price, stock.previousClose) * 0.99),
+    open,
+    high,
+    low,
     previousClose: stock.previousClose,
-    volume: 1000 + (seed % 90000), // 成交量（張 / 股）
-    updatedAt: new Date().toISOString(),
+    volume,
+    marketOpen: isMarketOpen(stock.market, new Date(now)),
+    updatedAt: new Date(now).toISOString(),
     isMock: true
   }
 }

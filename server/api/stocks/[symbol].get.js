@@ -1,4 +1,4 @@
-import { buildMockQuote, findMockStock } from '../../utils/mock-stocks'
+import { buildLiveQuote, findMockStock } from '../../utils/mock-stocks'
 
 // GET /api/stocks/:symbol
 // 單一個股的基本資訊 + 一組報價快照。
@@ -25,7 +25,7 @@ export default defineEventHandler((event) => {
     industry: stock.industry,
     currency: stock.currency,
     previousClose: stock.previousClose,
-    quote: buildMockQuote(stock),
+    quote: buildLiveQuote(stock),
     isMock: true
   }
 })

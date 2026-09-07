@@ -86,35 +86,41 @@ export function buildMockCandles(stock, { interval = '1d', limit = 120 } = {}) {
 }
 
 // 產生當日分時走勢。台股 09:00–13:30、美股 09:30–16:00。
+// 盤中只輸出到「現在」為止的點，讓連續輪詢看得到走勢延伸；
+// 開盤前輸出整段（視為前一場），收盤後輸出完整當日。
 export function buildMockIntraday(stock) {
-  const rng = makeRng(`${stock.symbol}:intraday`)
   const isTW = stock.market === 'TW'
   const now = new Date()
+  const rng = makeRng(`${stock.symbol}:intraday:${ymd(now)}`)
 
   const start = new Date(now)
   start.setUTCHours(0, 0, 0, 0)
-  // 以「當地開盤」的概略 UTC 時間表示（僅為 mock）
-  const startMinutes = isTW ? 1 * 60 : 13 * 60 + 30 // 粗略：台股 09:00(+8) → 01:00 UTC；美股 09:30(-4) → 13:30 UTC
+  // 概略 UTC 開盤時間：台股 09:00(+8) → 01:00 UTC；美股 09:30(EDT -4) → 13:30 UTC
+  const startMinutes = isTW ? 60 : 810
   const sessionMinutes = isTW ? 270 : 390
   const stepMinutes = 5
 
-  const points = []
-  let price = stock.previousClose * (1 + (rng() - 0.5) * 0.01)
+  const elapsed = now.getUTCHours() * 60 + now.getUTCMinutes() - startMinutes
+  const cap = elapsed <= 0 ? sessionMinutes : Math.min(elapsed, sessionMinutes)
 
-  for (let m = 0; m <= sessionMinutes; m += stepMinutes) {
+  const points = []
+  let price = stock.previousClose * (1 + (rng() - 0.5) * 0.008)
+
+  for (let m = 0; m <= cap; m += stepMinutes) {
     const t = new Date(start)
     t.setUTCMinutes(startMinutes + m)
-    price = Math.max(1, price * (1 + (rng() - 0.5) * 0.004))
+    price = Math.max(0.01, price * (1 + (rng() - 0.5) * 0.0035))
     points.push({
       time: Math.floor(t.getTime() / 1000),
       price: round(price),
-      volume: Math.round((0.4 + rng()) * (isTW ? 800 : 200000))
+      volume: Math.round((0.4 + rng()) * (isTW ? 900 : 220000))
     })
   }
 
   return {
     date: ymd(now),
     previousClose: stock.previousClose,
+    marketOpen: elapsed > 0 && elapsed < sessionMinutes,
     points
   }
 }

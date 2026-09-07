@@ -73,11 +73,19 @@
           </div>
         </dl>
 
+        <p class="quote-status" :data-status="quoteStatus">
+          <span class="quote-status__dot" aria-hidden="true" />
+          {{ QUOTE_STATUS_LABELS[quoteStatus] }}
+          <span v-if="quoteTime">· 更新於 {{ quoteTime }}</span>
+        </p>
+
         <template #fallback>
           <p class="quote-loading">即時行情載入中…</p>
         </template>
       </ClientOnly>
-      <p class="disclaimer">目前顯示為示範資料，尚未串接正式行情來源。</p>
+      <p class="disclaimer">
+        行情為示範資料，每 5 秒更新一次；正式行情來源與盤中即時推播將於後續接入。
+      </p>
     </section>
 
     <section aria-labelledby="stock-chart">
@@ -116,8 +124,20 @@ if (error.value || !stock.value) {
   })
 }
 
-const quote = computed(() => stock.value.quote ?? {})
+const {
+  quote: liveQuote,
+  status: quoteStatus,
+  updatedAt: quoteUpdatedAt
+} = useRealtimeQuote(symbol, { intervalMs: 5000 })
+
+// 顯示用報價：優先即時值，其次伺服器初次回傳的快照
+const quote = computed(() => liveQuote.value ?? stock.value.quote ?? {})
 const trend = computed(() => trendOf(quote.value.change))
+const quoteTime = computed(() =>
+  quoteUpdatedAt.value
+    ? quoteUpdatedAt.value.toLocaleTimeString('zh-TW', { hour12: false })
+    : null
+)
 const marketLabel = computed(() => getMarket(stock.value.market)?.label ?? stock.value.market)
 
 const title = computed(
@@ -254,6 +274,50 @@ h2 {
 
 .quote__main dd {
   font-size: 1.25rem;
+}
+
+.quote-status {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  margin-top: $space-3;
+  color: $color-text-muted;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quote-status__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: $color-text-muted;
+  flex-shrink: 0;
+}
+
+.quote-status[data-status='live'] .quote-status__dot {
+  background: $color-positive;
+  box-shadow: 0 0 0 0 rgba($color-positive, 0.6);
+  animation: quote-pulse 2s ease-out infinite;
+}
+
+.quote-status[data-status='stalled'] .quote-status__dot {
+  background: #f2c94c;
+}
+
+.quote-status[data-status='error'] .quote-status__dot {
+  background: $color-negative;
+}
+
+@keyframes quote-pulse {
+  to {
+    box-shadow: 0 0 0 0.5rem rgba($color-positive, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote-status__dot {
+    animation: none !important;
+  }
 }
 
 .quote-loading,

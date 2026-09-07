@@ -55,14 +55,35 @@ const endpoint = computed(() => {
   return `/stocks/${props.symbol}/history?interval=${interval}`
 })
 
-const { data, status, error } = useApiFetch(endpoint, {
+const { data, status, error, refresh } = useApiFetch(endpoint, {
   key: () => `chart-${props.symbol}-${activeTab.value}`,
   watch: [activeTab],
   server: false,
   lazy: true
 })
 
-const pending = computed(() => status.value === 'pending')
+// 只在「還沒有資料」時顯示載入態；輪詢刷新時保留現有圖表，避免閃爍
+const pending = computed(() => status.value === 'pending' && !data.value)
+
+// 當日走勢盤中每 20 秒重新抓取，讓走勢線延伸。
+// 日 / 週 K 不需輪詢。未來可改由 useRealtimeQuote 的最新價即時 append。
+let intradayTimer = null
+
+function syncIntradayPolling(tab) {
+  clearInterval(intradayTimer)
+  intradayTimer = null
+  if (tab === 'intraday') {
+    intradayTimer = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        refresh()
+      }
+    }, 20000)
+  }
+}
+
+onMounted(() => syncIntradayPolling(activeTab.value))
+watch(activeTab, (tab) => syncIntradayPolling(tab))
+onBeforeUnmount(() => clearInterval(intradayTimer))
 
 const isEmpty = computed(() => {
   const d = data.value
