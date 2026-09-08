@@ -15,8 +15,14 @@ const props = defineProps({
   referencePrice: { type: Number, default: null },
   // 時間軸是否顯示到時分（60分K、當日走勢）
   showTime: { type: Boolean, default: false },
-  height: { type: Number, default: 360 }
+  height: { type: Number, default: 360 },
+  // 畫線
+  interval: { type: String, default: '1d' },
+  drawings: { type: Array, default: () => [] },
+  drawMode: { type: String, default: 'none' } // 'none' | 'hline' | 'trend'
 })
+
+const emit = defineEmits(['add-drawing', 'pending-change'])
 
 const container = ref(null)
 
@@ -28,17 +34,27 @@ let maSeries = []
 let refLine = null
 let resizeObserver = null
 
+let drawPriceLines = new Map()
+let drawSeries = new Map()
+let pendingTrend = null
+
 const THEME = {
   text: '#8b9bb4',
   grid: 'rgba(36, 48, 65, 0.45)',
   border: 'rgba(36, 48, 65, 0.7)',
   up: '#f5455c', // 台灣慣例：紅漲
   down: '#21c07a', // 綠跌
-  area: '#5aa7ff'
+  area: '#5aa7ff',
+  hline: '#5aa7ff',
+  trend: '#f2c94c'
 }
 
 function volumeColor(isUp) {
   return isUp ? 'rgba(245, 69, 92, 0.35)' : 'rgba(33, 192, 122, 0.35)'
+}
+
+function round2(v) {
+  return Math.round(v * 100) / 100
 }
 
 async function buildChart() {
@@ -102,6 +118,8 @@ async function buildChart() {
     })
   }
 
+  chart.subscribeClick(onChartClick)
+
   resizeObserver = new ResizeObserver((entries) => {
     const width = entries[0]?.contentRect?.width
     if (width && chart) chart.applyOptions({ width: Math.floor(width) })
@@ -109,6 +127,7 @@ async function buildChart() {
   resizeObserver.observe(container.value)
 
   applyData()
+  syncDrawMode()
 }
 
 function applyData() {
@@ -165,6 +184,87 @@ function applyData() {
   }
 
   chart.timeScale().fitContent()
+  applyDrawings()
+}
+
+function applyDrawings() {
+  if (!chart || !mainSeries || !lib) return
+
+  drawPriceLines.forEach((pl) => mainSeries.removePriceLine(pl))
+  drawPriceLines.clear()
+  drawSeries.forEach((s) => chart.removeSeries(s))
+  drawSeries.clear()
+
+  for (const d of props.drawings) {
+    if (d.type === 'hline') {
+      const pl = mainSeries.createPriceLine({
+        price: d.price,
+        color: d.color || THEME.hline,
+        lineWidth: 1,
+        lineStyle: lib.LineStyle.Solid,
+        axisLabelVisible: true,
+        title: ''
+      })
+      drawPriceLines.set(d.id, pl)
+    } else if (d.type === 'trend' && d.interval === props.interval) {
+      const s = chart.addSeries(lib.LineSeries, {
+        color: d.color || THEME.trend,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false
+      })
+      const pts = [
+        { time: d.a.time, value: d.a.value },
+        { time: d.b.time, value: d.b.value }
+      ].sort((x, y) => (x.time < y.time ? -1 : x.time > y.time ? 1 : 0))
+      try {
+        s.setData(pts)
+        drawSeries.set(d.id, s)
+      } catch {
+        chart.removeSeries(s)
+      }
+    }
+  }
+}
+
+function onChartClick(param) {
+  if (props.drawMode === 'none' || !param.point || !mainSeries) return
+  const price = mainSeries.coordinateToPrice(param.point.y)
+  if (price == null) return
+
+  if (props.drawMode === 'hline') {
+    emit('add-drawing', { type: 'hline', price: round2(price) })
+    return
+  }
+
+  // trend
+  const time = param.time ?? chart.timeScale().coordinateToTime(param.point.x)
+  if (time == null) return
+  const pt = { time, value: round2(price) }
+
+  if (!pendingTrend) {
+    pendingTrend = pt
+    emit('pending-change', true)
+  } else {
+    emit('add-drawing', { type: 'trend', interval: props.interval, a: pendingTrend, b: pt })
+    pendingTrend = null
+    emit('pending-change', false)
+  }
+}
+
+function syncDrawMode() {
+  if (!chart || !container.value) return
+  const drawing = props.drawMode !== 'none'
+  container.value.style.cursor = drawing ? 'crosshair' : ''
+  chart.applyOptions({
+    handleScroll: !drawing,
+    handleScale: !drawing
+  })
+  if (!drawing && pendingTrend) {
+    pendingTrend = null
+    emit('pending-change', false)
+  }
 }
 
 watch(
@@ -172,6 +272,8 @@ watch(
   applyData,
   { deep: true }
 )
+watch(() => props.drawings, applyDrawings, { deep: true })
+watch(() => props.drawMode, syncDrawMode)
 
 onMounted(buildChart)
 
@@ -183,6 +285,9 @@ onBeforeUnmount(() => {
   volumeSeries = null
   maSeries = []
   refLine = null
+  drawPriceLines.clear()
+  drawSeries.clear()
+  pendingTrend = null
 })
 </script>
 
