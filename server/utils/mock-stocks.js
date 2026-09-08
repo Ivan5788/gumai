@@ -1,18 +1,19 @@
 // Mock 股票資料，供 server/api/** 使用。
 // 未來改為呼叫 Spring Boot 後，這個檔案可移除，端點改為轉呼後端。
 
+// listing: 'TWSE'（上市）/ 'TPEx'（上櫃）/ null（美股）。日 K 依此決定資料來源。
 export const MOCK_STOCKS = [
-  { symbol: '2330', market: 'TW', name: '台積電', nameEn: 'TSMC', industry: '半導體業', currency: 'TWD', previousClose: 1085 },
-  { symbol: '2317', market: 'TW', name: '鴻海', nameEn: 'Hon Hai Precision', industry: '其他電子業', currency: 'TWD', previousClose: 202.5 },
-  { symbol: '2454', market: 'TW', name: '聯發科', nameEn: 'MediaTek', industry: '半導體業', currency: 'TWD', previousClose: 1420 },
-  { symbol: '2412', market: 'TW', name: '中華電', nameEn: 'Chunghwa Telecom', industry: '通信網路業', currency: 'TWD', previousClose: 128 },
-  { symbol: '2308', market: 'TW', name: '台達電', nameEn: 'Delta Electronics', industry: '電子零組件業', currency: 'TWD', previousClose: 415 },
-  { symbol: '0050', market: 'TW', name: '元大台灣50', nameEn: 'Yuanta Taiwan 50 ETF', industry: 'ETF', currency: 'TWD', previousClose: 190 },
-  { symbol: 'AAPL', market: 'US', name: '蘋果', nameEn: 'Apple Inc.', industry: '消費性電子', currency: 'USD', previousClose: 232.5 },
-  { symbol: 'NVDA', market: 'US', name: '輝達', nameEn: 'NVIDIA Corp.', industry: '半導體', currency: 'USD', previousClose: 178.2 },
-  { symbol: 'MSFT', market: 'US', name: '微軟', nameEn: 'Microsoft Corp.', industry: '軟體服務', currency: 'USD', previousClose: 430.1 },
-  { symbol: 'TSLA', market: 'US', name: '特斯拉', nameEn: 'Tesla Inc.', industry: '汽車', currency: 'USD', previousClose: 340.8 },
-  { symbol: 'GOOGL', market: 'US', name: 'Alphabet', nameEn: 'Alphabet Inc.', industry: '網路服務', currency: 'USD', previousClose: 165.4 }
+  { symbol: '2330', market: 'TW', listing: 'TWSE', name: '台積電', nameEn: 'TSMC', industry: '半導體業', currency: 'TWD', previousClose: 1085 },
+  { symbol: '2317', market: 'TW', listing: 'TWSE', name: '鴻海', nameEn: 'Hon Hai Precision', industry: '其他電子業', currency: 'TWD', previousClose: 202.5 },
+  { symbol: '2454', market: 'TW', listing: 'TWSE', name: '聯發科', nameEn: 'MediaTek', industry: '半導體業', currency: 'TWD', previousClose: 1420 },
+  { symbol: '2412', market: 'TW', listing: 'TWSE', name: '中華電', nameEn: 'Chunghwa Telecom', industry: '通信網路業', currency: 'TWD', previousClose: 128 },
+  { symbol: '2308', market: 'TW', listing: 'TWSE', name: '台達電', nameEn: 'Delta Electronics', industry: '電子零組件業', currency: 'TWD', previousClose: 415 },
+  { symbol: '0050', market: 'TW', listing: 'TWSE', name: '元大台灣50', nameEn: 'Yuanta Taiwan 50 ETF', industry: 'ETF', currency: 'TWD', previousClose: 190 },
+  { symbol: 'AAPL', market: 'US', listing: null, name: '蘋果', nameEn: 'Apple Inc.', industry: '消費性電子', currency: 'USD', previousClose: 232.5 },
+  { symbol: 'NVDA', market: 'US', listing: null, name: '輝達', nameEn: 'NVIDIA Corp.', industry: '半導體', currency: 'USD', previousClose: 178.2 },
+  { symbol: 'MSFT', market: 'US', listing: null, name: '微軟', nameEn: 'Microsoft Corp.', industry: '軟體服務', currency: 'USD', previousClose: 430.1 },
+  { symbol: 'TSLA', market: 'US', listing: null, name: '特斯拉', nameEn: 'Tesla Inc.', industry: '汽車', currency: 'USD', previousClose: 340.8 },
+  { symbol: 'GOOGL', market: 'US', listing: null, name: 'Alphabet', nameEn: 'Alphabet Inc.', industry: '網路服務', currency: 'USD', previousClose: 165.4 }
 ]
 
 export function findMockStock(symbol) {
