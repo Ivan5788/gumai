@@ -78,3 +78,49 @@ export function getYahooHourly(stock) {
 export function getYahooDaily(stock) {
   return getCached(yahooSymbol(stock), '1d', '1y')
 }
+
+// 當日分時走勢（1 分 K）。回傳 { date, previousClose, points: [{ time, price, volume }] }
+export async function getYahooIntraday(stock) {
+  const ySymbol = yahooSymbol(stock)
+  const key = `yahoo:1m:${ySymbol}`
+  const store = useStorage('data')
+  const cached = await store.getItem(key)
+  if (cached && Date.now() - cached.at < 90 * 1000) return cached.value
+
+  try {
+    const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
+      params: { interval: '1m', range: '1d', includePrePost: 'false' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+      timeout: 12000,
+      retry: 0
+    })
+    const r = res?.chart?.result?.[0]
+    if (!r || !Array.isArray(r.timestamp)) return cached?.value || null
+
+    const q = r.indicators?.quote?.[0] || {}
+    const isTW = r.meta?.currency === 'TWD'
+    const offset = Number(r.meta?.gmtoffset || 0)
+
+    const points = []
+    for (let i = 0; i < r.timestamp.length; i += 1) {
+      const c = q.close?.[i]
+      if (c == null) continue
+      points.push({
+        time: r.timestamp[i] + offset,
+        price: round2(c),
+        volume: Math.round((q.volume?.[i] || 0) / (isTW ? 1000 : 1))
+      })
+    }
+    if (points.length < 5) return cached?.value || null
+
+    const value = {
+      date: new Date((r.timestamp[0] + offset) * 1000).toISOString().slice(0, 10),
+      previousClose: r.meta?.previousClose ?? r.meta?.chartPreviousClose ?? null,
+      points
+    }
+    await store.setItem(key, { at: Date.now(), value })
+    return value
+  } catch {
+    return cached?.value || null
+  }
+}
