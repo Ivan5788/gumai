@@ -11,6 +11,7 @@
     <header class="page__intro">
       <p class="eyebrow">{{ marketLabel }} · {{ stock.industry }}</p>
       <h1>{{ stock.name }}（{{ stock.symbol }}）股價與即時行情</h1>
+      <WatchlistButton :symbol="stock.symbol" />
       <p class="lede">
         {{ stock.name }}（{{ stock.symbol }}）為{{ marketLabel }}{{ stock.industry }}標的。
         本頁提供{{ stock.name }}的即時股價、漲跌、成交量、歷史走勢，以及日 K、週 K、當日走勢與均線等技術分析。
@@ -231,6 +232,10 @@ useWebPageJsonLd({
   font-size: clamp(1.5rem, 2.2vw, 2rem);
   font-weight: 650;
   letter-spacing: -0.03em;
+}
+
+.page__intro :deep(.wl) {
+  margin-bottom: $space-4;
 }
 
 .lede {

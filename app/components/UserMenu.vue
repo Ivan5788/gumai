@@ -8,6 +8,7 @@
       </summary>
       <div class="user-menu__panel">
         <p class="user-menu__email">{{ user?.email }}</p>
+        <NuxtLink to="/watchlist" class="user-menu__item" @click="close">我的收藏</NuxtLink>
         <button type="button" class="user-menu__item" @click="onLogout">登出</button>
       </div>
     </details>

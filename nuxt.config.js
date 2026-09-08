@@ -42,6 +42,13 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       routes: ['/', '/stock', '/screener', '/signals', '/sitemap.xml', '/robots.txt']
+    },
+    // 使用者資料（收藏、畫線）先存本機檔案，未來由 Spring Boot 取代
+    storage: {
+      data: { driver: 'fs', base: './.data/kv' }
+    },
+    devStorage: {
+      data: { driver: 'fs', base: './.data/kv' }
     }
   },
   vite: {
