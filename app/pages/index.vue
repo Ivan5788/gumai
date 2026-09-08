@@ -1,28 +1,40 @@
 <template>
   <article class="page">
     <header class="page__intro">
-      <p class="eyebrow">Real-Time Market Terminal</p>
+      <p class="eyebrow">台股 · 美股 · 即時看盤</p>
       <h1>StockPulse 台股與美股即時看盤與選股平台</h1>
       <p class="lede">
-        StockPulse 提供台灣股市與美國股市的看盤、技術分析與選股工作區。
-        本頁說明平台定位；個股報價、圖表與選股引擎將於後續階段接上資料服務。
+        StockPulse 提供台灣股市與美國股市的即時報價、K 線技術分析、三大法人與大戶籌碼、選股與關鍵訊號搜尋。
+        登入後可建立自選股分類，並在 K 線圖上自行畫線，紀錄保存到帳號。
       </p>
     </header>
 
     <section class="panel-grid" aria-labelledby="overview-features">
       <h2 id="overview-features" class="visually-hidden">平台功能</h2>
-      <article class="panel">
-        <h3>市場工作區</h3>
-        <p>切換台灣與美國市場後，搜尋、報價與列表會使用對應的市場資料來源。</p>
-      </article>
-      <article class="panel">
-        <h3>股票分析</h3>
-        <p>個股頁將提供基本資訊、歷史走勢與 K 線圖，並保留即時報價在瀏覽器端更新。</p>
-      </article>
-      <article class="panel">
+      <NuxtLink to="/stock/2330" class="panel">
+        <h3>個股分析</h3>
+        <p>即時報價、當日走勢、60 分 K、日 K、週 K 與 MA 均線；三大法人買賣超、大戶／散戶持股變化、大戶買賣力。</p>
+      </NuxtLink>
+      <NuxtLink to="/screener" class="panel">
         <h3>選股系統</h3>
-        <p>第一版將支援跳空上漲、爆大量與站上均線，規則會獨立於畫面元件。</p>
-      </article>
+        <p>依站上均線、黃金交叉、突破新高、爆量、跳空、外資連買、大戶買賣力翻正等技術面與籌碼面條件篩選。</p>
+      </NuxtLink>
+      <NuxtLink to="/signals" class="panel">
+        <h3>關鍵訊號搜尋</h3>
+        <p>掃描近期剛發生的訊號，如站上季線、黃金交叉、創新高、帶量上漲、外資翻多、大戶買賣力翻紅。</p>
+      </NuxtLink>
+    </section>
+
+    <section aria-labelledby="popular-stocks">
+      <h2 id="popular-stocks" class="section-title">熱門股票</h2>
+      <ul class="stock-links">
+        <li v-for="s in stocks" :key="s.symbol">
+          <NuxtLink :to="`/stock/${s.symbol}`">
+            <span class="stock-links__name">{{ s.name }}</span>
+            <span class="stock-links__meta">{{ s.symbol }} · {{ s.market === 'TW' ? '台股' : '美股' }}</span>
+          </NuxtLink>
+        </li>
+      </ul>
     </section>
   </article>
 </template>
@@ -30,17 +42,18 @@
 <script setup>
 const title = 'StockPulse｜台股與美股即時看盤與選股平台'
 const description =
-  'StockPulse 是台股與美股即時看盤、技術分析與選股平台，提供股票資訊、走勢圖與選股工具。'
-const { url } = usePageSeo({
-  title,
-  description,
-  path: '/'
-})
+  'StockPulse 是台股與美股即時看盤、技術分析與選股平台，提供即時報價、日 K／週 K／60 分 K、均線、三大法人、大戶籌碼、選股與關鍵訊號搜尋。'
+
+const { data: stockData } = await useApiFetch('/stocks', { key: 'home-stocks' })
+const stocks = computed(() => stockData.value?.items ?? [])
+
+const { url } = usePageSeo({ title, description, path: '/' })
 
 useWebPageJsonLd({
   name: title,
   description,
-  url
+  url,
+  siteActions: true
 })
 </script>
 
@@ -48,7 +61,7 @@ useWebPageJsonLd({
 .page {
   display: flex;
   flex-direction: column;
-  gap: $space-6;
+  gap: $space-8;
 }
 
 .page__intro h1 {
@@ -59,10 +72,16 @@ useWebPageJsonLd({
 }
 
 .lede {
-  max-width: 42rem;
+  max-width: 44rem;
   color: $color-text-muted;
   font-size: 0.98rem;
   line-height: 1.65;
+}
+
+.section-title {
+  margin-bottom: $space-4;
+  font-size: 1.05rem;
+  font-weight: 650;
 }
 
 .panel-grid {
@@ -80,16 +99,25 @@ useWebPageJsonLd({
 }
 
 .panel {
+  display: block;
   min-width: 0;
   padding: $space-5;
   border: 1px solid $color-border;
   border-radius: $radius-md;
   background: $color-surface;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: $color-accent;
+  }
 
   h3 {
     margin-bottom: $space-2;
     font-size: 0.95rem;
     font-weight: 650;
+    color: $color-accent;
   }
 
   p {
@@ -97,6 +125,45 @@ useWebPageJsonLd({
     font-size: 0.9rem;
     line-height: 1.6;
   }
+}
+
+.stock-links {
+  display: grid;
+  gap: $space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: 1fr;
+
+  @include tablet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include desktop {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $space-3;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    color: $color-text;
+    text-decoration: none;
+
+    &:hover {
+      background: $color-surface-hover;
+    }
+  }
+}
+
+.stock-links__meta {
+  color: $color-text-muted;
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .visually-hidden {

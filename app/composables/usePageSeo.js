@@ -10,7 +10,10 @@ export function usePageSeo({ title, description, path }) {
     ogDescription: description,
     ogType: 'website',
     ogUrl: url,
-    twitterCard: 'summary_large_image',
+    ogSiteName: config.public.siteName,
+    ogLocale: 'zh_TW',
+    // 目前無 OG 圖，用 summary；有設計稿後改 summary_large_image + og:image
+    twitterCard: 'summary',
     twitterTitle: title,
     twitterDescription: description
   })
@@ -30,11 +33,34 @@ export function usePageSeo({ title, description, path }) {
   return { url, siteUrl }
 }
 
-export function useWebPageJsonLd({ name, description, url, extra = [] }) {
+export function useWebPageJsonLd({ name, description, url, extra = [], siteActions = false }) {
   const config = useRuntimeConfig()
   const siteUrl = String(config.public.siteUrl).replace(/\/$/, '')
   const siteName = config.public.siteName
   const siteDescription = config.public.siteDescription
+
+  const website = {
+    '@type': 'WebSite',
+    name: siteName,
+    url: siteUrl,
+    description: siteDescription
+  }
+
+  if (siteActions) {
+    website.publisher = {
+      '@type': 'Organization',
+      name: siteName,
+      url: siteUrl
+    }
+    website.potentialAction = {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${siteUrl}/signals?q={search_term_string}`
+      },
+      'query-input': 'required name=search_term_string'
+    }
+  }
 
   useHead({
     script: computed(() => [
@@ -43,12 +69,7 @@ export function useWebPageJsonLd({ name, description, url, extra = [] }) {
         innerHTML: JSON.stringify({
           '@context': 'https://schema.org',
           '@graph': [
-            {
-              '@type': 'WebSite',
-              name: siteName,
-              url: siteUrl,
-              description: siteDescription
-            },
+            website,
             {
               '@type': 'WebPage',
               name: unref(name),

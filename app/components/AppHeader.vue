@@ -44,10 +44,10 @@
 const route = useRoute()
 
 const navItems = [
-  { label: 'Overview', to: '/', match: 'exact' },
-  { label: 'Analysis', to: '/stock', match: 'prefix' },
-  { label: 'Screener', to: '/screener', match: 'exact' },
-  { label: 'Signals', to: '/signals', match: 'exact' }
+  { label: '總覽', to: '/', match: 'exact' },
+  { label: '個股', to: '/stock', match: 'prefix' },
+  { label: '選股', to: '/screener', match: 'exact' },
+  { label: '訊號', to: '/signals', match: 'exact' }
 ]
 
 const isActive = (item) => {

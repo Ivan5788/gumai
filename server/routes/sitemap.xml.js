@@ -1,3 +1,5 @@
+import { MOCK_STOCKS } from '../utils/mock-stocks'
+
 function xmlEscape(value) {
   return value
     .replaceAll('&', '&amp;')
@@ -9,13 +11,26 @@ function xmlEscape(value) {
 
 export default defineEventHandler((event) => {
   const siteUrl = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
-  const paths = ['/', '/stock', '/screener', '/signals']
+  const today = new Date().toISOString().slice(0, 10)
 
-  const urls = paths
-    .map((path) => {
-      const loc = xmlEscape(`${siteUrl}${path}`)
-      return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>daily</changefreq>\n  </url>`
-    })
+  const entries = [
+    { path: '/', changefreq: 'daily', priority: '1.0' },
+    { path: '/stock', changefreq: 'weekly', priority: '0.6' },
+    { path: '/screener', changefreq: 'daily', priority: '0.8' },
+    { path: '/signals', changefreq: 'hourly', priority: '0.8' },
+    // 個股頁：目前為 mock 股票池，未來由後端提供上市櫃 / 美股清單
+    ...MOCK_STOCKS.map((s) => ({
+      path: `/stock/${s.symbol}`,
+      changefreq: 'daily',
+      priority: '0.7'
+    }))
+  ]
+
+  const urls = entries
+    .map(
+      ({ path, changefreq, priority }) =>
+        `  <url>\n    <loc>${xmlEscape(`${siteUrl}${path}`)}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`
+    )
     .join('\n')
 
   setHeader(event, 'Content-Type', 'application/xml; charset=utf-8')

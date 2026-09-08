@@ -3,7 +3,7 @@
     <nav class="crumbs" aria-label="麵包屑">
       <NuxtLink to="/">首頁</NuxtLink>
       <span aria-hidden="true">/</span>
-      <NuxtLink to="/stock">股票分析</NuxtLink>
+      <NuxtLink to="/stock">個股分析</NuxtLink>
       <span aria-hidden="true">/</span>
       <span aria-current="page">{{ stock.name }}（{{ stock.symbol }}）</span>
     </nav>
@@ -14,7 +14,8 @@
       <WatchlistButton :symbol="stock.symbol" />
       <p class="lede">
         {{ stock.name }}（{{ stock.symbol }}）為{{ marketLabel }}{{ stock.industry }}標的。
-        本頁提供{{ stock.name }}的即時股價、漲跌、成交量、歷史走勢，以及日 K、週 K、當日走勢與均線等技術分析。
+        本頁提供{{ stock.name }}的即時股價、漲跌、成交量、歷史走勢，以及當日走勢、60 分 K、日 K、週 K 與均線，
+        並含三大法人買賣超、大戶與散戶持股變化與大戶買賣力。
       </p>
     </header>
 
@@ -185,7 +186,7 @@ useWebPageJsonLd({
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: '首頁', item: `${siteUrl}/` },
-        { '@type': 'ListItem', position: 2, name: '股票分析', item: `${siteUrl}/stock` },
+        { '@type': 'ListItem', position: 2, name: '個股分析', item: `${siteUrl}/stock` },
         {
           '@type': 'ListItem',
           position: 3,

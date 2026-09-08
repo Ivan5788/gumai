@@ -7,6 +7,8 @@ export default defineEventHandler((event) => {
     'User-agent: *',
     'Allow: /',
     'Disallow: /api/',
+    'Disallow: /auth/',
+    'Disallow: /watchlist',
     '',
     `Sitemap: ${siteUrl}/sitemap.xml`,
     ''

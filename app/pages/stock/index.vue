@@ -1,44 +1,54 @@
 <template>
   <article class="page">
     <header class="page__intro">
-      <p class="eyebrow">Stock Analysis</p>
-      <h1>股票分析工作區</h1>
+      <p class="eyebrow">個股分析</p>
+      <h1>個股分析</h1>
       <p class="lede">
-        此路由保留給個股搜尋、報價與金融圖表。動態個股頁使用
-        <code>/stock/代號</code>
-        ，例如
-        <NuxtLink to="/stock/2330">/stock/2330</NuxtLink>
-        。即時報價與圖表尚未接上資料服務。
+        每檔個股頁提供即時報價、當日走勢、60 分 K、日 K、週 K 與 MA 均線，
+        以及三大法人買賣超、大戶與散戶持股變化、大戶買賣力。個股網址為 <code>/stock/代號</code>，
+        例如 <NuxtLink to="/stock/2330">台積電（2330）</NuxtLink>、
+        <NuxtLink to="/stock/NVDA">輝達（NVDA）</NuxtLink>。
       </p>
     </header>
 
-    <section class="workspace" aria-label="分析版面">
-      <article class="workspace__chart panel">
-        <h2>走勢圖</h2>
-        <p>當日走勢、日 K 與週 K 將顯示於此區。</p>
-      </article>
-      <article class="workspace__quote panel">
-        <h2>股票基本資訊</h2>
-        <p>名稱、代號、最新價格、漲跌、開盤、最高、最低與成交量將顯示於此區。</p>
-      </article>
+    <section aria-labelledby="tw-stocks">
+      <h2 id="tw-stocks" class="section-title">台股</h2>
+      <ul class="stock-links">
+        <li v-for="s in twStocks" :key="s.symbol">
+          <NuxtLink :to="`/stock/${s.symbol}`">
+            <span>{{ s.name }}</span>
+            <span class="stock-links__meta">{{ s.symbol }} · {{ s.industry }}</span>
+          </NuxtLink>
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="us-stocks">
+      <h2 id="us-stocks" class="section-title">美股</h2>
+      <ul class="stock-links">
+        <li v-for="s in usStocks" :key="s.symbol">
+          <NuxtLink :to="`/stock/${s.symbol}`">
+            <span>{{ s.name }}</span>
+            <span class="stock-links__meta">{{ s.symbol }} · {{ s.industry }}</span>
+          </NuxtLink>
+        </li>
+      </ul>
     </section>
   </article>
 </template>
 
 <script setup>
-const title = '股票分析｜股價、走勢圖與技術分析 | StockPulse'
-const description = '在 StockPulse 查看台股與美股個股分析頁面，後續將提供報價、歷史走勢與 K 線圖。'
-const { url } = usePageSeo({
-  title,
-  description,
-  path: '/stock'
-})
+const title = '個股分析｜台股與美股股價、K 線與籌碼 | StockPulse'
+const description =
+  'StockPulse 個股分析：即時報價、當日走勢、日 K／週 K／60 分 K、均線、三大法人買賣超、大戶與散戶持股變化與大戶買賣力。'
 
-useWebPageJsonLd({
-  name: title,
-  description,
-  url
-})
+const { data: stockData } = await useApiFetch('/stocks', { key: 'stock-index-list' })
+const items = computed(() => stockData.value?.items ?? [])
+const twStocks = computed(() => items.value.filter((s) => s.market === 'TW'))
+const usStocks = computed(() => items.value.filter((s) => s.market === 'US'))
+
+const { url } = usePageSeo({ title, description, path: '/stock' })
+useWebPageJsonLd({ name: title, description, url })
 </script>
 
 <style lang="scss" scoped>
@@ -56,10 +66,16 @@ useWebPageJsonLd({
 }
 
 .lede {
-  max-width: 40rem;
+  max-width: 44rem;
   color: $color-text-muted;
   font-size: 0.98rem;
   line-height: 1.65;
+
+  a {
+    color: $color-accent;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
 }
 
 code {
@@ -67,45 +83,48 @@ code {
   font-size: 0.88em;
 }
 
-.workspace {
+.section-title {
+  margin-bottom: $space-3;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.stock-links {
   display: grid;
-  gap: $space-4;
+  gap: $space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   grid-template-columns: 1fr;
 
+  @include tablet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   @include desktop {
-    grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 0.9fr);
-    align-items: start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $space-3;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    color: $color-text;
+    text-decoration: none;
+
+    &:hover {
+      background: $color-surface-hover;
+    }
   }
 }
 
-.panel {
-  min-width: 0;
-  min-height: 12rem;
-  padding: $space-5;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-  background: $color-surface;
-
-  h2 {
-    margin-bottom: $space-2;
-    font-size: 0.95rem;
-    font-weight: 650;
-  }
-
-  p {
-    color: $color-text-muted;
-    font-size: 0.9rem;
-    line-height: 1.6;
-  }
-}
-
-.workspace__chart {
-  min-height: 16rem;
-}
-
-a {
-  color: $color-accent;
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
+.stock-links__meta {
+  color: $color-text-muted;
+  font-size: 0.78rem;
+  text-align: right;
 }
 </style>

@@ -36,12 +36,28 @@ export default defineNuxtConfig({
     '/screener': { prerender: true },
     '/signals': { prerender: true },
     '/stock': { prerender: true },
+    // 個股頁不預渲染全部，改為 SWR：首次請求時 SSR，之後 5 分鐘內回快取
     '/stock/**': { swr: 300 }
   },
   nitro: {
     prerender: {
-      crawlLinks: true,
-      routes: ['/', '/stock', '/screener', '/signals', '/sitemap.xml', '/robots.txt']
+      // 不爬連結（避免把 screener / signals 連到的個股頁全部預渲染）；
+      // 只預渲染靜態頁與少數熱門個股，其餘走 SWR
+      crawlLinks: false,
+      routes: [
+        '/',
+        '/stock',
+        '/screener',
+        '/signals',
+        '/sitemap.xml',
+        '/robots.txt',
+        '/stock/2330',
+        '/stock/2317',
+        '/stock/2454',
+        '/stock/AAPL',
+        '/stock/NVDA',
+        '/stock/TSLA'
+      ]
     },
     // 使用者資料（收藏、畫線）先存本機檔案，未來由 Spring Boot 取代
     storage: {
