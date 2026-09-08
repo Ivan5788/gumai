@@ -9,7 +9,7 @@ function xmlEscape(value) {
 
 export default defineEventHandler((event) => {
   const siteUrl = String(useRuntimeConfig().public.siteUrl).replace(/\/$/, '')
-  const paths = ['/', '/stock', '/screener']
+  const paths = ['/', '/stock', '/screener', '/signals']
 
   const urls = paths
     .map((path) => {

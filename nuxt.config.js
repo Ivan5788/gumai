@@ -34,13 +34,14 @@ export default defineNuxtConfig({
   routeRules: {
     '/': { prerender: true },
     '/screener': { prerender: true },
+    '/signals': { prerender: true },
     '/stock': { prerender: true },
     '/stock/**': { swr: 300 }
   },
   nitro: {
     prerender: {
       crawlLinks: true,
-      routes: ['/', '/stock', '/screener', '/sitemap.xml', '/robots.txt']
+      routes: ['/', '/stock', '/screener', '/signals', '/sitemap.xml', '/robots.txt']
     }
   },
   vite: {

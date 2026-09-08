@@ -41,7 +41,8 @@ const route = useRoute()
 const navItems = [
   { label: 'Overview', to: '/', match: 'exact' },
   { label: 'Analysis', to: '/stock', match: 'prefix' },
-  { label: 'Screener', to: '/screener', match: 'exact' }
+  { label: 'Screener', to: '/screener', match: 'exact' },
+  { label: 'Signals', to: '/signals', match: 'exact' }
 ]
 
 const isActive = (item) => {
