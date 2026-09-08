@@ -1,29 +1,37 @@
 import { buildLiveQuote } from './mock-stocks'
 import { getTwseDailyCandles } from './twse'
+import { getYahooDaily } from './yahoo'
 
 const TWSE_ENABLED = process.env.NUXT_TWSE_ENABLED !== 'false'
+const YAHOO_ENABLED = process.env.NUXT_YAHOO_ENABLED !== 'false'
 
-// 台股上市：昨收取自證交所實際收盤，quote 在其附近變動（示範用，非真實即時）。
-// 其餘：完全示範資料。
+// 昨收：台股上市 → 證交所實際收盤；美股 → Yahoo。
+// quote 在昨收附近變動（示範用盤中，非真實即時）。
 export async function resolveQuote(stock) {
   let previousClose = stock.previousClose
-  let real = false
+  let source = 'mock'
 
-  if (TWSE_ENABLED && stock.listing === 'TWSE') {
-    try {
+  try {
+    if (TWSE_ENABLED && stock.listing === 'TWSE') {
       const daily = await getTwseDailyCandles(stock.symbol, 2)
       if (daily.length) {
         previousClose = daily[daily.length - 1].close
-        real = true
+        source = 'twse'
       }
-    } catch {
-      // 用 mock 昨收
+    } else if (YAHOO_ENABLED && stock.market === 'US') {
+      const daily = await getYahooDaily(stock)
+      if (daily.length) {
+        previousClose = daily[daily.length - 1].close
+        source = 'yahoo'
+      }
     }
+  } catch {
+    // 用 mock 昨收
   }
 
   return {
     previousClose,
-    previousCloseSource: real ? 'twse' : 'mock',
+    previousCloseSource: source,
     quote: buildLiveQuote({ ...stock, previousClose })
   }
 }

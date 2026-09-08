@@ -117,7 +117,9 @@ const pending = computed(() => status.value === 'pending' && !data.value)
 
 const sourceNote = computed(() => {
   if (activeTab.value === 'intraday') return '當日走勢為示範資料，尚未串接正式行情來源。'
-  if (data.value?.source === 'twse') return '日 K／週 K 資料來源：臺灣證券交易所（盤後）。'
+  const src = data.value?.source
+  if (src === 'twse') return '資料來源：臺灣證券交易所（盤後）。'
+  if (src === 'yahoo') return `資料來源：Yahoo Finance（約 15–20 分鐘延遲）。`
   return '走勢圖為示範資料，尚未串接正式行情來源。'
 })
 
