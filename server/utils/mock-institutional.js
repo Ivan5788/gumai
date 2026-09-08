@@ -25,30 +25,9 @@ function aggregateWeekly(days) {
   return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
 }
 
-// 三大法人：外資、投信、自營商的買賣超（單位：張）。
-// interval: '1d'（每日，近 60 交易日）或 '1wk'（每週彙總）。
-export function buildMockInstitutional(stock, { interval = '1d' } = {}) {
-  if (stock.market !== 'TW') {
-    return {
-      symbol: stock.symbol,
-      market: stock.market,
-      available: false,
-      reason: '三大法人買賣超為台股資料，美股不適用。',
-      isMock: true
-    }
-  }
-
-  const rng = makeRng(`${stock.symbol}:institutional`)
-  const dates = tradingDates(60, 1, true)
-  const scale = 1 + makeRng(stock.symbol)() * 8 // 不同股票量能差異
-
-  const days = dates.map((date) => {
-    const foreign = Math.round((rng() - 0.48) * 9000 * scale)
-    const trust = Math.round((rng() - 0.5) * 1500 * scale)
-    const dealer = Math.round((rng() - 0.5) * 900 * scale)
-    return { date, foreign, trust, dealer, total: foreign + trust + dealer }
-  })
-
+// 由每日買賣超陣列組出端點回應（rows 依 interval、summary 用每日）。
+// days: [{ date, foreign, trust, dealer, total }]，日期升冪。
+export function assembleInstitutional(stock, days, { interval = '1d', source = 'mock' } = {}) {
   const sumOf = (list, key) => list.reduce((acc, d) => acc + d[key], 0)
   const makeSummary = (n) => {
     const slice = days.slice(-n)
@@ -69,14 +48,41 @@ export function buildMockInstitutional(stock, { interval = '1d' } = {}) {
     available: true,
     unit: '張',
     interval: normalizedInterval,
+    source,
     rows: normalizedInterval === '1wk' ? aggregateWeekly(days) : days,
     summary: {
       d1: makeSummary(1),
       d5: makeSummary(5),
       d20: makeSummary(20)
     },
-    isMock: true
+    isMock: source === 'mock'
   }
+}
+
+// 三大法人：外資、投信、自營商的買賣超（單位：張）。示範資料。
+export function buildMockInstitutional(stock, { interval = '1d' } = {}) {
+  if (stock.market !== 'TW') {
+    return {
+      symbol: stock.symbol,
+      market: stock.market,
+      available: false,
+      reason: '三大法人買賣超為台股資料，美股不適用。',
+      isMock: true
+    }
+  }
+
+  const rng = makeRng(`${stock.symbol}:institutional`)
+  const dates = tradingDates(60, 1, true)
+  const scale = 1 + makeRng(stock.symbol)() * 8
+
+  const days = dates.map((date) => {
+    const foreign = Math.round((rng() - 0.48) * 9000 * scale)
+    const trust = Math.round((rng() - 0.5) * 1500 * scale)
+    const dealer = Math.round((rng() - 0.5) * 900 * scale)
+    return { date, foreign, trust, dealer, total: foreign + trust + dealer }
+  })
+
+  return assembleInstitutional(stock, days, { interval, source: 'mock' })
 }
 
 function aggregateHoldersWeekly(days) {

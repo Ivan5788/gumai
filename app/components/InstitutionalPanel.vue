@@ -1,6 +1,6 @@
 <template>
   <div class="inst">
-    <p v-if="pending" class="inst__state">三大法人資料載入中…</p>
+    <p v-if="pending" class="inst__state">三大法人資料載入中…（首次由資料來源抓取需數秒）</p>
     <p v-else-if="error" class="inst__state">三大法人資料載入失敗。</p>
     <p v-else-if="data && !data.available" class="inst__state">{{ data.reason }}</p>
 
@@ -77,7 +77,9 @@
           </tbody>
         </table>
       </div>
-      <p class="inst__note">單位：{{ data.unit }}。正值為買超、負值為賣超。示範資料，盤後彙總。</p>
+      <p class="inst__note">
+        單位：{{ data.unit }}。正值為買超、負值為賣超。{{ sourceNote }}
+      </p>
     </template>
   </div>
 </template>
@@ -102,11 +104,14 @@ const whoOptions = [
 ]
 const whoLabel = computed(() => whoOptions.find((o) => o.id === who.value)?.label ?? '')
 
-const { data, status, error } = await useApiFetch(
+// client-side：真實資料來源（FinMind）首次抓取需數秒
+const { data, status, error } = useApiFetch(
   () => `/stocks/${props.symbol}/institutional?interval=${interval.value}`,
   {
     key: () => `inst-${props.symbol}-${interval.value}`,
-    watch: [interval]
+    watch: [interval],
+    server: false,
+    lazy: true
   }
 )
 
@@ -114,6 +119,12 @@ const pending = computed(() => status.value === 'pending' && !data.value)
 
 const rows = computed(() => data.value?.rows ?? [])
 const recentRows = computed(() => [...rows.value].reverse().slice(0, 24))
+
+const sourceNote = computed(() =>
+  data.value?.source === 'finmind'
+    ? '資料來源：FinMind（證交所盤後彙總）。'
+    : '示範資料，盤後彙總。'
+)
 
 const chartBars = computed(() => rows.value.map((r) => ({ time: r.date, value: r[who.value] })))
 const chartCumulative = computed(() => {
