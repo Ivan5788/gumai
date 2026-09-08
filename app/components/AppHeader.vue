@@ -20,17 +20,22 @@
         </span>
       </NuxtLink>
 
-      <nav class="nav" aria-label="主要導覽">
-        <NuxtLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="nav__link"
-          :class="{ 'nav__link--active': isActive(item) }"
-        >
-          {{ item.label }}
-        </NuxtLink>
-      </nav>
+      <div class="app-header__right">
+        <nav class="nav" aria-label="主要導覽">
+          <NuxtLink
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+            class="nav__link"
+            :class="{ 'nav__link--active': isActive(item) }"
+          >
+            {{ item.label }}
+          </NuxtLink>
+        </nav>
+        <ClientOnly>
+          <UserMenu />
+        </ClientOnly>
+      </div>
     </div>
   </header>
 </template>
@@ -78,6 +83,17 @@ const isActive = (item) => {
     justify-content: space-between;
     gap: $space-6;
     padding: $space-3 $space-6;
+  }
+}
+
+.app-header__right {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  min-width: 0;
+
+  @include tablet {
+    gap: $space-4;
   }
 }
 

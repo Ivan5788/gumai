@@ -3,7 +3,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   ssr: true,
   css: ['~/assets/styles/main.scss'],
-  modules: ['@pinia/nuxt'],
+  modules: ['@pinia/nuxt', 'nuxt-auth-utils'],
   typescript: {
     typeCheck: false
   },
