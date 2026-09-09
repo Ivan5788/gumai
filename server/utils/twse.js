@@ -34,7 +34,11 @@ async function fetchMonthRaw(stockNo, year, month) {
     retry: 0
   })
 
-  if (!res || res.stat !== 'OK' || !Array.isArray(res.data)) return { rows: [], name: null }
+  // 區分「該期間確實無資料」與「請求失敗 / 被限流」——後者不可快取為空
+  if (!res || typeof res.stat !== 'string') throw new Error('twse: bad response')
+  const noData = res.stat.includes('沒有符合條件')
+  if (res.stat !== 'OK' && !noData) throw new Error(`twse: ${res.stat}`)
+  if (noData || !Array.isArray(res.data)) return { rows: [], name: null }
 
   // title 例："115年09月 2330 台積電           各日成交資訊"
   const name = String(res.title || '').match(/\d+年\d+月\s+\S+\s+(\S+)\s+各日/)?.[1] || null

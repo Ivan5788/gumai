@@ -58,8 +58,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // 美股日/週 K → Yahoo
-  if ((iv === '1d' || iv === '1wk') && YAHOO_ENABLED && stock.market === 'US') {
+  // 美股 / 台股上櫃 日/週 K → Yahoo
+  if ((iv === '1d' || iv === '1wk') && YAHOO_ENABLED && (stock.market === 'US' || stock.listing === 'TPEx')) {
     try {
       const daily = await getYahooDaily(stock)
       const candles = iv === '1wk' ? aggregateWeeklyCandles(daily) : daily

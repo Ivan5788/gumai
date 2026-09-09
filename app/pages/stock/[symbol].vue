@@ -143,7 +143,7 @@ const { data: stock, error } = await useApiFetch(() => `/stocks/${symbol.value}`
 if (error.value || !stock.value) {
   throw createError({
     statusCode: error.value?.statusCode || 404,
-    statusMessage: `找不到股票代號「${symbol.value}」`,
+    message: `找不到股票代號「${symbol.value}」`,
     fatal: true
   })
 }

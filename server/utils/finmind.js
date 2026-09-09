@@ -17,7 +17,7 @@ async function finmind(dataset, dataId, startDate) {
     params: {
       dataset,
       data_id: dataId,
-      start_date: startDate,
+      ...(startDate ? { start_date: startDate } : {}),
       ...(token ? { token } : {})
     },
     timeout: 15000,
@@ -27,6 +27,25 @@ async function finmind(dataset, dataId, startDate) {
     throw new Error(`finmind: ${res?.msg || res?.status || 'unknown'}`)
   }
   return res.data
+}
+
+// 股票基本資料（名稱 / 產業 / 市場別）。涵蓋上市、上櫃。
+export async function getFinmindStockInfo(stockId) {
+  const key = `finmind:info:${stockId}`
+  const store = useStorage('data')
+  const cached = await store.getItem(key)
+  if (cached && Date.now() - cached.at < 7 * 24 * 60 * 60 * 1000) return cached.value
+
+  try {
+    const rows = await finmind('TaiwanStockInfo', stockId)
+    const r = rows.find((x) => x.stock_name && (x.type === 'twse' || x.type === 'tpex'))
+    if (!r) return cached?.value || null
+    const value = { name: r.stock_name, industry: r.industry_category || null, type: r.type }
+    await store.setItem(key, { at: Date.now(), value })
+    return value
+  } catch {
+    return cached?.value || null
+  }
 }
 
 // 三大法人買賣超（單位：張），近 ~120 天，回傳 [{ date, foreign, trust, dealer, total }]
