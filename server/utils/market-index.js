@@ -6,10 +6,29 @@
 //
 // 盤中即時指數需 mis.twse.com.tw（本環境不穩，且非官方 opendata），暫不接。
 
+import { aggregateWeeklyCandles } from './twse'
+import {
+  getFinmindIndexCandles
+} from './finmind'
+import { getYahooChartBySymbol, getYahooIntradayBySymbol } from './yahoo'
+
 const TAIEX_URL = 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST?response=json'
 const TPEX_URL = 'https://www.tpex.org.tw/openapi/v1/tpex_index'
 const TTL = 10 * 60 * 1000
 const UA = 'Mozilla/5.0 (StockPulse)'
+
+const FINMIND_ENABLED = process.env.NUXT_FINMIND_ENABLED !== 'false'
+const YAHOO_ENABLED = process.env.NUXT_YAHOO_ENABLED !== 'false'
+
+// 支援的大盤指數。yahoo 僅加權有（^TWII）；櫃買 Yahoo 資料已停更，只提供日/週 K。
+export const INDEX_META = {
+  TAIEX: { code: 'TAIEX', name: '加權指數', market: '上市', finmind: 'TAIEX', yahoo: '^TWII' },
+  TPEX: { code: 'TPEX', name: '櫃買指數', market: '上櫃', finmind: 'TPEx', yahoo: null }
+}
+
+export function resolveIndex(code) {
+  return INDEX_META[String(code || '').trim().toUpperCase()] || null
+}
 
 let memo = null
 
@@ -137,4 +156,62 @@ export async function getMarketIndices() {
     // 落回快取
   }
   return memo || cached || { updatedAt: null, indices: [] }
+}
+
+// ── 指數走勢圖 ──────────────────────────────────────────
+
+const HISTORY_INTERVALS = ['1d', '1wk', '60m']
+
+// GET 用：{ code, name, interval, candles, source }
+export async function getIndexHistory(code, interval = '1d') {
+  const meta = resolveIndex(code)
+  if (!meta) return null
+  const iv = HISTORY_INTERVALS.includes(interval) ? interval : '1d'
+
+  // 60 分 K → Yahoo（僅加權）
+  if (iv === '60m') {
+    if (YAHOO_ENABLED && meta.yahoo) {
+      try {
+        const candles = await getYahooChartBySymbol(meta.yahoo, '60m', '3mo')
+        if (candles.length >= 20) {
+          return { code: meta.code, name: meta.name, interval: iv, candles, source: 'yahoo' }
+        }
+      } catch {
+        // 落回
+      }
+    }
+    return { code: meta.code, name: meta.name, interval: iv, candles: [], source: null }
+  }
+
+  // 日 K / 週 K → FinMind
+  if (FINMIND_ENABLED) {
+    try {
+      const daily = await getFinmindIndexCandles(meta.finmind)
+      if (daily.length >= 20) {
+        const candles = iv === '1wk' ? aggregateWeeklyCandles(daily) : daily
+        return { code: meta.code, name: meta.name, interval: iv, candles, source: 'finmind' }
+      }
+    } catch {
+      // 落回
+    }
+  }
+
+  return { code: meta.code, name: meta.name, interval: iv, candles: [], source: null }
+}
+
+// GET 用：{ code, name, date, previousClose, points, source }（僅加權有分時）
+export async function getIndexIntraday(code) {
+  const meta = resolveIndex(code)
+  if (!meta) return null
+  if (YAHOO_ENABLED && meta.yahoo) {
+    try {
+      const res = await getYahooIntradayBySymbol(meta.yahoo)
+      if (res && res.points?.length) {
+        return { code: meta.code, name: meta.name, source: 'yahoo', ...res }
+      }
+    } catch {
+      // 落回
+    }
+  }
+  return { code: meta.code, name: meta.name, source: null, date: null, previousClose: null, points: [] }
 }

@@ -151,9 +151,17 @@ export function getYahooDaily(stock) {
   return getCached(yahooSymbol(stock), '1d', '1y')
 }
 
+// 指數等非個股：以 Yahoo 代號（如 ^TWII）直接取線圖
+export function getYahooChartBySymbol(ySymbol, interval, range) {
+  return getCached(ySymbol, interval, range)
+}
+
 // 當日分時走勢（1 分 K）。回傳 { date, previousClose, points: [{ time, price, volume }] }
 export async function getYahooIntraday(stock) {
-  const ySymbol = yahooSymbol(stock)
+  return getYahooIntradayBySymbol(yahooSymbol(stock))
+}
+
+export async function getYahooIntradayBySymbol(ySymbol) {
   const key = `yahoo:1m:${ySymbol}`
   const store = useStorage('data')
   const cached = await store.getItem(key)

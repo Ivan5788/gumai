@@ -15,6 +15,8 @@ export default defineEventHandler((event) => {
 
   const entries = [
     { path: '/', changefreq: 'daily', priority: '1.0' },
+    { path: '/market/TAIEX', changefreq: 'daily', priority: '0.8' },
+    { path: '/market/TPEX', changefreq: 'daily', priority: '0.8' },
     { path: '/stock', changefreq: 'weekly', priority: '0.6' },
     { path: '/screener', changefreq: 'daily', priority: '0.8' },
     { path: '/signals', changefreq: 'hourly', priority: '0.8' },

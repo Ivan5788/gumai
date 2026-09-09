@@ -48,6 +48,35 @@ export async function getFinmindStockInfo(stockId) {
   }
 }
 
+// 大盤指數日 K（加權 TAIEX / 櫃買 TPEx）。FinMind TaiwanStockPrice 支援指數代號。
+// 回傳 candle：[{ time, open, high, low, close, volume(張) }]，升冪。
+export async function getFinmindIndexCandles(indexId) {
+  const key = `finmind:index:${indexId}`
+  const store = useStorage('data')
+  const cached = await store.getItem(key)
+  if (cached && Date.now() - cached.at < CACHE_TTL) return cached.rows
+
+  try {
+    const raw = await finmind('TaiwanStockPrice', indexId, isoDaysAgo(500))
+    const rows = raw
+      .map((r) => ({
+        time: r.date,
+        open: Number(r.open),
+        high: Number(r.max),
+        low: Number(r.min),
+        close: Number(r.close),
+        volume: Math.round((Number(r.Trading_Volume) || 0) / 1000)
+      }))
+      .filter((c) => Number.isFinite(c.open) && Number.isFinite(c.close) && c.close > 0)
+      .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+
+    if (rows.length) await store.setItem(key, { at: Date.now(), rows })
+    return rows.length ? rows : cached?.rows || []
+  } catch {
+    return cached?.rows || []
+  }
+}
+
 // 三大法人買賣超（單位：張），近 ~120 天，回傳 [{ date, foreign, trust, dealer, total }]
 export async function getFinmindInstitutional(stockNo) {
   const key = `finmind:inst:${stockNo}`

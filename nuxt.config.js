@@ -38,7 +38,9 @@ export default defineNuxtConfig({
     '/screener': { swr: 120 },
     '/signals': { swr: 120 },
     // 個股頁不預渲染全部，改為 SWR：首次請求時 SSR，之後 5 分鐘內回快取
-    '/stock/**': { swr: 300 }
+    '/stock/**': { swr: 300 },
+    // 大盤指數頁：官方盤後資料，SSR + 短快取
+    '/market/**': { swr: 300 }
   },
   nitro: {
     prerender: {
@@ -47,6 +49,8 @@ export default defineNuxtConfig({
       crawlLinks: false,
       routes: [
         '/',
+        '/market/TAIEX',
+        '/market/TPEX',
         '/stock',
         '/sitemap.xml',
         '/robots.txt',

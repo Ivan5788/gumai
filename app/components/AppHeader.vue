@@ -45,6 +45,7 @@ const route = useRoute()
 
 const navItems = [
   { label: '總覽', to: '/', match: 'exact' },
+  { label: '大盤', to: '/market/TAIEX', match: 'prefix', matchPath: '/market' },
   { label: '個股', to: '/stock', match: 'prefix' },
   { label: '選股', to: '/screener', match: 'exact' },
   { label: '訊號', to: '/signals', match: 'exact' }
@@ -52,7 +53,8 @@ const navItems = [
 
 const isActive = (item) => {
   if (item.match === 'prefix') {
-    return route.path === item.to || route.path.startsWith(`${item.to}/`)
+    const base = item.matchPath || item.to
+    return route.path === base || route.path.startsWith(`${base}/`)
   }
 
   return route.path === item.to

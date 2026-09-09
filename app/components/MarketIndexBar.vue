@@ -1,14 +1,15 @@
 <template>
   <section v-if="indices.length" class="index-bar" aria-label="台股大盤指數">
-    <article
+    <NuxtLink
       v-for="idx in indices"
       :key="idx.code"
+      :to="`/market/${idx.code}`"
       class="index-bar__item"
       :data-trend="trendOf(idx.change)"
     >
       <div class="index-bar__head">
         <span class="index-bar__name">{{ idx.name }}</span>
-        <span class="index-bar__tag">{{ idx.market }}</span>
+        <span class="index-bar__tag">{{ idx.market }} · 走勢圖 ›</span>
       </div>
       <div class="index-bar__value">{{ formatPrice(idx.value) }}</div>
       <div class="index-bar__delta">
@@ -20,7 +21,7 @@
         <div><dt>高</dt><dd>{{ formatPrice(idx.high) }}</dd></div>
         <div><dt>低</dt><dd>{{ formatPrice(idx.low) }}</dd></div>
       </dl>
-    </article>
+    </NuxtLink>
     <p class="index-bar__note">
       <span v-if="dateLabel">資料日期 {{ dateLabel }}（收盤）</span>
       <span>資料來源：證交所、櫃買中心</span>
@@ -76,11 +77,19 @@ const dateLabel = computed(() => {
 }
 
 .index-bar__item {
+  display: block;
   min-width: 0;
   padding: $space-3 $space-4;
   border: 1px solid $color-border;
   border-radius: $radius-sm;
   background: $color-bg;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: $color-accent;
+  }
 }
 
 .index-bar__head {
