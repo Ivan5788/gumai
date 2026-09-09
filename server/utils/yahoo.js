@@ -100,6 +100,49 @@ export async function getYahooMeta(symbol) {
   }
 }
 
+// 延遲即時報價（約 15–20 分）。來自 chart meta 的 regularMarket* 欄位。
+export async function getYahooQuote(stock) {
+  const ySymbol = yahooSymbol(stock)
+  const key = `yahoo:quote:${ySymbol}`
+  const store = useStorage('data')
+  const cached = await store.getItem(key)
+  if (cached && Date.now() - cached.at < 60 * 1000) return cached.value
+
+  try {
+    const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
+      params: { interval: '1d', range: '1d' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+      timeout: 10000,
+      retry: 0
+    })
+    const r = res?.chart?.result?.[0]
+    const m = r?.meta
+    if (!m || m.regularMarketPrice == null) return cached?.value || null
+
+    const isTW = m.currency === 'TWD'
+    const price = round2(m.regularMarketPrice)
+    const previousClose = round2(m.chartPreviousClose ?? m.previousClose ?? price)
+    const open = round2(r.indicators?.quote?.[0]?.open?.[0] ?? m.regularMarketOpen ?? price)
+    const change = round2(price - previousClose)
+
+    const value = {
+      price,
+      previousClose,
+      open,
+      high: round2(m.regularMarketDayHigh ?? price),
+      low: round2(m.regularMarketDayLow ?? price),
+      change,
+      changePercent: previousClose ? round2((change / previousClose) * 100) : 0,
+      volume: Math.round((m.regularMarketVolume || 0) / (isTW ? 1000 : 1)),
+      marketTime: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now()
+    }
+    await store.setItem(key, { at: Date.now(), value })
+    return value
+  } catch {
+    return cached?.value || null
+  }
+}
+
 export function getYahooHourly(stock) {
   return getCached(yahooSymbol(stock), '60m', '3mo')
 }

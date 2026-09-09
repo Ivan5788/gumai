@@ -45,10 +45,10 @@ function createPollingTransport({ client, symbol, intervalMs }) {
 
 export const QUOTE_STATUS_LABELS = {
   idle: '尚未連線',
-  connecting: '連線中…',
-  live: '即時',
+  connecting: '更新中…',
+  live: '已更新',
   stalled: '連線不穩，顯示最後報價',
-  error: '無法取得即時報價'
+  error: '無法取得報價'
 }
 
 export function useRealtimeQuote(symbol, options = {}) {

@@ -85,9 +85,7 @@
           <p class="quote-loading">即時行情載入中…</p>
         </template>
       </ClientOnly>
-      <p class="disclaimer">
-        行情為示範資料，每 5 秒更新一次；正式行情來源與盤中即時推播將於後續接入。
-      </p>
+      <p class="disclaimer">{{ quoteDisclaimer }}</p>
     </section>
 
     <section aria-labelledby="stock-chart">
@@ -154,11 +152,16 @@ const {
   quote: liveQuote,
   status: quoteStatus,
   updatedAt: quoteUpdatedAt
-} = useRealtimeQuote(symbol, { intervalMs: 5000 })
+} = useRealtimeQuote(symbol, { intervalMs: 30000 })
 
 // 顯示用報價：優先即時值，其次伺服器初次回傳的快照
 const quote = computed(() => liveQuote.value ?? stock.value.quote ?? {})
 const trend = computed(() => trendOf(quote.value.change))
+const quoteDisclaimer = computed(() =>
+  quote.value.source === 'yahoo-delayed'
+    ? '行情為延遲報價（約 15–20 分鐘），資料來源 Yahoo Finance；盤中即時推播（券商 API）將於後續接入。'
+    : '行情為示範資料（以實際昨收為基準的模擬盤中）；正式行情來源將於後續接入。'
+)
 const quoteTime = computed(() =>
   quoteUpdatedAt.value
     ? quoteUpdatedAt.value.toLocaleTimeString('zh-TW', { hour12: false })
