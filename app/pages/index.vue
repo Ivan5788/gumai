@@ -1,10 +1,12 @@
 <template>
   <article class="page">
+    <MarketIndexBar />
+
     <header class="page__intro">
       <p class="eyebrow">台股 · 美股 · 即時看盤</p>
       <h1>StockPulse 台股與美股即時看盤與選股平台</h1>
       <p class="lede">
-        StockPulse 提供台灣股市與美國股市的即時報價、K 線技術分析、三大法人與大戶籌碼、選股與關鍵訊號搜尋。
+        StockPulse 提供台灣加權指數、櫃買指數與台股、美股個股的即時報價、K 線技術分析、三大法人與大戶籌碼、選股與關鍵訊號搜尋。
         登入後可建立自選股分類，並在 K 線圖上自行畫線，紀錄保存到帳號。
       </p>
     </header>
