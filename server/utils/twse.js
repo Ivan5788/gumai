@@ -93,8 +93,18 @@ export async function getTwseStockName(stockNo) {
   return (await useStorage('data').getItem(`twse:name:${stockNo}`)) || null
 }
 
-// 取得近 monthsBack 個月的日 K，已排序去重
-export async function getTwseDailyCandles(stockNo, monthsBack = 8) {
+// 只讀該月快取，不發請求（用於背景漸進式補齊）
+async function readCachedMonth(stockNo, year, month) {
+  const key = `twse:day:${stockNo}:${year}-${String(month).padStart(2, '0')}`
+  const cached = await useStorage('data').getItem(key)
+  return cached?.rows || null
+}
+
+// 取得日 K，已排序去重。
+//   monthsBack：同步抓取（await）的最近月份數
+//   backgroundMonths：更早的月份 —— 已快取者併入本次結果，未快取者丟背景抓（不 await，
+//     只為填快取，下次載入即完整）。避免冷門股首次載入等待整段區間。
+export async function getTwseDailyCandles(stockNo, monthsBack = 8, { backgroundMonths = 0 } = {}) {
   const now = new Date()
   const out = new Map()
 
@@ -102,6 +112,19 @@ export async function getTwseDailyCandles(stockNo, monthsBack = 8) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const rows = await getMonth(stockNo, d.getFullYear(), d.getMonth() + 1)
     for (const r of rows) out.set(r.time, r)
+  }
+
+  for (let i = monthsBack; i < monthsBack + backgroundMonths; i += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const y = d.getFullYear()
+    const m = d.getMonth() + 1
+    const cached = await readCachedMonth(stockNo, y, m)
+    if (cached) {
+      for (const r of cached) out.set(r.time, r)
+    } else {
+      // fire-and-forget：排入證交所節流佇列，填入快取供下次使用
+      void getMonth(stockNo, y, m).catch(() => {})
+    }
   }
 
   return [...out.values()].sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))

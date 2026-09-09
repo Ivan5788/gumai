@@ -148,7 +148,7 @@ export function getYahooHourly(stock) {
 }
 
 export function getYahooDaily(stock) {
-  return getCached(yahooSymbol(stock), '1d', '1y')
+  return getCached(yahooSymbol(stock), '1d', '2y')
 }
 
 // 指數等非個股：以 Yahoo 代號（如 ^TWII）直接取線圖
