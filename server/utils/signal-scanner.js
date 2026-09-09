@@ -13,21 +13,36 @@ export function scanSignals({ candles, institutional, bigPower }, lookback = 10)
   const ma20 = sma(closes, 20)
   const ma60 = sma(closes, 60)
 
-  const start = Math.max(2, candles.length - lookback)
-  for (let i = start; i < candles.length; i += 1) {
+  const n = candles.length
+
+  // 交叉是否「站穩」：交叉後下一根仍維持同方向（或本身已是最後一根，無從判斷則保留）
+  const held = (a, b, i, dir) => {
+    if (i >= n - 1) return true
+    if (b[i + 1] == null) return true
+    return dir > 0 ? a[i + 1] > b[i + 1] : a[i + 1] < b[i + 1]
+  }
+
+  const start = Math.max(2, n - lookback)
+  for (let i = start; i < n; i += 1) {
     const date = candles[i].time
     const add = (signalId) => events.push({ date, signalId })
 
     if (ma20[i - 1] != null) {
-      if (closes[i - 1] <= ma20[i - 1] && closes[i] > ma20[i]) add('cross_above_ma20')
-      if (closes[i - 1] >= ma20[i - 1] && closes[i] < ma20[i]) add('break_below_ma20')
+      if (closes[i - 1] <= ma20[i - 1] && closes[i] > ma20[i] && held(closes, ma20, i, 1)) {
+        add('cross_above_ma20')
+      }
+      if (closes[i - 1] >= ma20[i - 1] && closes[i] < ma20[i] && held(closes, ma20, i, -1)) {
+        add('break_below_ma20')
+      }
     }
     if (ma60[i - 1] != null) {
-      if (closes[i - 1] <= ma60[i - 1] && closes[i] > ma60[i]) add('cross_above_ma60')
+      if (closes[i - 1] <= ma60[i - 1] && closes[i] > ma60[i] && held(closes, ma60, i, 1)) {
+        add('cross_above_ma60')
+      }
     }
     if (ma5[i - 1] != null && ma20[i - 1] != null) {
-      if (ma5[i - 1] <= ma20[i - 1] && ma5[i] > ma20[i]) add('golden_cross')
-      if (ma5[i - 1] >= ma20[i - 1] && ma5[i] < ma20[i]) add('dead_cross')
+      if (ma5[i - 1] <= ma20[i - 1] && ma5[i] > ma20[i] && held(ma5, ma20, i, 1)) add('golden_cross')
+      if (ma5[i - 1] >= ma20[i - 1] && ma5[i] < ma20[i] && held(ma5, ma20, i, -1)) add('dead_cross')
     }
 
     if (i >= 21) {
