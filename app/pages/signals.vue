@@ -109,7 +109,7 @@
             </tbody>
           </table>
         </div>
-        <p class="signals__note">示範資料，股票池為 11 檔台美股樣本。正式版將涵蓋全市場並於盤後更新。</p>
+        <p class="signals__note">{{ poolNote }}</p>
       </section>
     </div>
   </article>
@@ -169,6 +169,13 @@ const { data, status, error } = await useApiFetch(requestUrl, {
 })
 
 const pending = computed(() => status.value === 'pending' && !data.value)
+
+const poolNote = computed(() => {
+  if (data.value?.source === 'live') {
+    return `掃描 ${data.value.poolSize} 檔台股權值股與熱門美股，於盤後更新（大戶買賣力訊號仍為示範）。`
+  }
+  return '指標快照建立中，暫時顯示示範資料，稍後重新整理即為實際資料。'
+})
 
 const title = '關鍵訊號搜尋｜黃金交叉、突破、外資翻多 | StockPulse'
 const description =

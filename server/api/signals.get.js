@@ -1,12 +1,8 @@
-import { MOCK_STOCKS } from '../utils/mock-stocks'
-import { buildMockCandles } from '../utils/mock-history'
-import { buildMockInstitutional } from '../utils/mock-institutional'
-import { buildMockBigPower } from '../utils/mock-bigpower'
-import { scanSignals } from '../utils/signal-scanner'
+import { getPoolSnapshot } from '../utils/pool-snapshot'
 
 // GET /api/signals?q=&types=golden_cross,gap_up&direction=bullish|bearish&market=TW|US&days=10
-// 近期關鍵訊號事件，依日期新到舊排序。
-export default defineEventHandler((event) => {
+// 近期關鍵訊號事件，依日期新到舊。資料來自股票池指標快照。
+export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const q = String(query.q || '').trim().toLowerCase()
   const market = query.market ? String(query.market).toUpperCase() : null
@@ -17,28 +13,21 @@ export default defineEventHandler((event) => {
     .map((s) => s.trim())
     .filter((id) => SIGNAL_IDS.includes(id))
 
-  let universe = MOCK_STOCKS
-  if (market === 'TW' || market === 'US') {
-    universe = universe.filter((s) => s.market === market)
-  }
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+  const snap = await getPoolSnapshot()
 
   let events = []
-  for (const stock of universe) {
-    const ctx = {
-      stock,
-      candles: buildMockCandles(stock, { interval: '1d', pinLast: false }),
-      institutional: buildMockInstitutional(stock, { interval: '1d' }),
-      bigPower: buildMockBigPower(stock, { interval: '1d' })
-    }
-
-    for (const ev of scanSignals(ctx, days)) {
+  for (const r of snap.rows) {
+    if ((market === 'TW' || market === 'US') && r.market !== market) continue
+    for (const ev of r.events) {
+      if (ev.date < cutoff) continue
       const meta = signalMeta(ev.signalId)
       if (!meta) continue
       events.push({
         date: ev.date,
-        symbol: stock.symbol,
-        name: stock.name,
-        market: stock.market,
+        symbol: r.symbol,
+        name: r.name,
+        market: r.market,
         signalId: ev.signalId,
         label: meta.label,
         direction: meta.direction
@@ -71,7 +60,8 @@ export default defineEventHandler((event) => {
     direction: direction || 'all',
     market: market || 'ALL',
     count: events.length,
-    events: events.slice(0, 200),
-    isMock: true
+    poolSize: snap.rows.length,
+    source: snap.source,
+    events: events.slice(0, 300)
   }
 })

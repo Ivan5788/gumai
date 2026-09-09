@@ -33,22 +33,21 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/': { prerender: true },
-    '/screener': { prerender: true },
-    '/signals': { prerender: true },
     '/stock': { prerender: true },
+    // 選股 / 訊號的結果會隨盤後指標快照變動，不預渲染；SSR + 短快取
+    '/screener': { swr: 120 },
+    '/signals': { swr: 120 },
     // 個股頁不預渲染全部，改為 SWR：首次請求時 SSR，之後 5 分鐘內回快取
     '/stock/**': { swr: 300 }
   },
   nitro: {
     prerender: {
-      // 不爬連結（避免把 screener / signals 連到的個股頁全部預渲染）；
+      // 不爬連結（避免把清單頁連到的個股頁全部預渲染）；
       // 只預渲染靜態頁與少數熱門個股，其餘走 SWR
       crawlLinks: false,
       routes: [
         '/',
         '/stock',
-        '/screener',
-        '/signals',
         '/sitemap.xml',
         '/robots.txt',
         '/stock/2330',
