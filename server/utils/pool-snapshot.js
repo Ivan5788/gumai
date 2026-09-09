@@ -11,10 +11,12 @@ import { getYahooDaily } from './yahoo'
 import { getFinmindInstitutional } from './finmind'
 import {
   assembleInstitutional,
+  assembleHolders,
   buildMockInstitutional,
   buildMockHolders
 } from './mock-institutional'
 import { buildMockBigPower } from './mock-bigpower'
+import { getTdccHolders } from './tdcc'
 import { RULE_TESTS } from './screener-rules'
 import { scanSignals } from './signal-scanner'
 
@@ -28,8 +30,7 @@ function round2(v) {
   return Math.round((Number(v) || 0) * 100) / 100
 }
 
-function buildRow(stock, candles, institutional) {
-  const holders = buildMockHolders(stock) // 大戶/散戶仍為示範
+function buildRow(stock, candles, institutional, holders) {
   const bigPower = buildMockBigPower(stock) // 大戶買賣力仍為示範
   const ctx = { stock, candles, institutional, holders, bigPower }
 
@@ -91,12 +92,25 @@ async function institutionalFor(stock) {
   return buildMockInstitutional(stock)
 }
 
+async function holdersFor(stock) {
+  if (stock.market === 'TW' && stock.listing) {
+    try {
+      const t = await getTdccHolders(stock.symbol)
+      if (t && t.history.length) return assembleHolders(stock, t.history, 'tdcc')
+    } catch {
+      // 落回示範
+    }
+  }
+  return buildMockHolders(stock)
+}
+
 function mockSnapshot() {
   const rows = MOCK_STOCKS.map((stock) =>
     buildRow(
       stock,
       buildMockCandles(stock, { interval: '1d', pinLast: false }),
-      buildMockInstitutional(stock)
+      buildMockInstitutional(stock),
+      buildMockHolders(stock)
     )
   )
   return { rows, source: 'mock', builtAt: Date.now() }
@@ -108,8 +122,10 @@ async function buildLive() {
     try {
       const stock = await resolveStock(symbol)
       if (!stock) continue
-      const [candles, institutional] = [await candlesFor(stock), await institutionalFor(stock)]
-      rows.push(buildRow(stock, candles, institutional))
+      const candles = await candlesFor(stock)
+      const institutional = await institutionalFor(stock)
+      const holders = await holdersFor(stock)
+      rows.push(buildRow(stock, candles, institutional, holders))
     } catch {
       // 略過此股
     }

@@ -1,33 +1,24 @@
 <template>
   <div class="holders">
-    <p v-if="pending" class="holders__state">大戶／散戶資料載入中…</p>
+    <p v-if="pending" class="holders__state">大戶／散戶資料載入中…（首次由集保資料抓取需數秒）</p>
     <p v-else-if="error" class="holders__state">大戶／散戶資料載入失敗。</p>
     <p v-else-if="data && !data.available" class="holders__state">{{ data.reason }}</p>
 
     <template v-else-if="data">
       <div class="holders__summary">
         <article class="holders__card">
-          <h3>大戶目前持股（{{ data.thresholds.big }}）</h3>
+          <h3>大戶持股（{{ data.thresholds.big }}）</h3>
           <p>{{ formatNumber(data.latest.bigShares) }} 張</p>
+          <span v-if="data.latest.bigPercent != null">占集保 {{ data.latest.bigPercent }}%</span>
         </article>
         <article class="holders__card">
-          <h3>散戶目前持股（{{ data.thresholds.retail }}）</h3>
+          <h3>散戶持股（{{ data.thresholds.retail }}）</h3>
           <p>{{ formatNumber(data.latest.retailShares) }} 張</p>
+          <span v-if="data.latest.retailPercent != null">占集保 {{ data.latest.retailPercent }}%</span>
         </article>
       </div>
 
       <div class="holders__controls">
-        <div class="seg" role="group" aria-label="週期">
-          <button
-            v-for="opt in intervalOptions"
-            :key="opt.id"
-            type="button"
-            :class="{ 'is-active': interval === opt.id }"
-            @click="interval = opt.id"
-          >
-            {{ opt.label }}
-          </button>
-        </div>
         <div class="seg" role="group" aria-label="對象">
           <button
             v-for="opt in whoOptions"
@@ -41,24 +32,27 @@
         </div>
       </div>
 
-      <ClientOnly>
-        <NetFlowChart :bars="chartBars" :line="chartLevel" :height="300" />
-        <template #fallback>
-          <p class="holders__state">持股走勢圖載入中…</p>
-        </template>
-      </ClientOnly>
-      <p class="holders__note">
-        長條為{{ whoLabel }}每{{ interval === '1wk' ? '週' : '日' }}買賣超（紅買超、綠賣超），黃線為持股量水位。
+      <template v-if="rows.length >= 2">
+        <ClientOnly>
+          <NetFlowChart :bars="chartBars" :line="chartLevel" :height="300" />
+          <template #fallback>
+            <p class="holders__state">持股走勢圖載入中…</p>
+          </template>
+        </ClientOnly>
+        <p class="holders__note">
+          長條為{{ whoLabel }}每週持股增減（紅增、綠減），黃線為持股量水位。
+        </p>
+      </template>
+      <p v-else class="holders__state">
+        週歷史資料累積中（目前 {{ rows.length }} 週），下週起可看到變化走勢。
       </p>
 
-      <div class="holders__table-wrap">
+      <div v-if="recentRows.length" class="holders__table-wrap">
         <table class="holders__table">
-          <caption class="visually-hidden">
-            {{ interval === '1wk' ? '每週' : '每日' }}大戶與散戶持股量與買賣超（單位：{{ data.unit }}）
-          </caption>
+          <caption class="visually-hidden">大戶與散戶每週持股量與增減（單位：{{ data.unit }}）</caption>
           <thead>
             <tr>
-              <th scope="col">{{ interval === '1wk' ? '週別' : '日期' }}</th>
+              <th scope="col">結算日</th>
               <th scope="col">大戶持股</th>
               <th scope="col">大戶增減</th>
               <th scope="col">散戶持股</th>
@@ -76,8 +70,9 @@
           </tbody>
         </table>
       </div>
+
       <p class="holders__note">
-        單位：{{ data.unit }}。大戶＝持股 {{ data.thresholds.big }}，散戶＝持股 {{ data.thresholds.retail }}。示範資料。
+        單位：{{ data.unit }}。大戶＝持股 {{ data.thresholds.big }}，散戶＝持股 {{ data.thresholds.retail }}。{{ sourceNote }}
       </p>
     </template>
   </div>
@@ -88,37 +83,35 @@ const props = defineProps({
   symbol: { type: String, required: true }
 })
 
-const interval = ref('1d')
 const who = ref('big')
-
-const intervalOptions = [
-  { id: '1d', label: '日' },
-  { id: '1wk', label: '週' }
-]
 const whoOptions = [
   { id: 'big', label: '大戶' },
   { id: 'retail', label: '散戶' }
 ]
 const whoLabel = computed(() => whoOptions.find((o) => o.id === who.value)?.label ?? '')
 
-const { data, status, error } = await useApiFetch(
-  () => `/stocks/${props.symbol}/holders?interval=${interval.value}`,
-  {
-    key: () => `holders-${props.symbol}-${interval.value}`,
-    watch: [interval]
-  }
-)
+const { data, error } = useApiFetch(() => `/stocks/${props.symbol}/holders`, {
+  key: () => `holders-${props.symbol}`,
+  server: false,
+  lazy: true
+})
 
-const pending = computed(() => status.value === 'pending' && !data.value)
+const pending = computed(() => !data.value && !error.value)
 
 const rows = computed(() => data.value?.rows ?? [])
-const recentRows = computed(() => [...rows.value].reverse().slice(0, 24))
+const recentRows = computed(() => [...rows.value].reverse().slice(0, 16))
 
 const sharesKey = computed(() => (who.value === 'big' ? 'bigShares' : 'retailShares'))
 const netKey = computed(() => (who.value === 'big' ? 'bigNet' : 'retailNet'))
 
 const chartBars = computed(() => rows.value.map((r) => ({ time: r.date, value: r[netKey.value] })))
 const chartLevel = computed(() => rows.value.map((r) => ({ time: r.date, value: r[sharesKey.value] })))
+
+const sourceNote = computed(() =>
+  data.value?.source === 'tdcc'
+    ? '資料來源：集保結算所（每週結算）；歷史自本站接上後每週累積。'
+    : '示範資料。'
+)
 
 function netClass(value) {
   if (value > 0) return 'is-buy'
@@ -170,6 +163,11 @@ function netClass(value) {
     font-size: 1.2rem;
     font-weight: 650;
     font-variant-numeric: tabular-nums;
+  }
+
+  span {
+    color: $color-text-muted;
+    font-size: 0.78rem;
   }
 }
 

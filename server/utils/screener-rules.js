@@ -81,10 +81,12 @@ export const RULE_TESTS = {
     return last(institutional.rows)?.trust > 0
   },
 
-  big_holder_up: ({ holders }) => {
+  // 散戶持股較上一週結算減少（籌碼集中）。需 ≥2 週集保資料。
+  retail_holder_down: ({ holders }) => {
     if (!holders?.available) return false
     const rows = holders.rows
-    return rows.length > 5 && last(rows).bigShares > rows[rows.length - 6].bigShares
+    if (rows.length < 2) return false
+    return last(rows).retailShares < rows[rows.length - 2].retailShares
   },
 
   big_power_turn_positive: ({ bigPower }) => {

@@ -85,26 +85,43 @@ export function buildMockInstitutional(stock, { interval = '1d' } = {}) {
   return assembleInstitutional(stock, days, { interval, source: 'mock' })
 }
 
-function aggregateHoldersWeekly(days) {
-  const map = new Map()
-  for (const d of days) {
-    const key = mondayOf(d.date)
-    const acc =
-      map.get(key) ||
-      { date: key, bigShares: d.bigShares, bigNet: 0, retailShares: d.retailShares, retailNet: 0 }
-    acc.bigNet += d.bigNet
-    acc.retailNet += d.retailNet
-    acc.bigShares = d.bigShares // 迭代為日期升冪，最後一筆即週末水位
-    acc.retailShares = d.retailShares
-    map.set(key, acc)
+// 由週點序列組出大戶／散戶端點回應。
+// points: [{ date, bigShares, retailShares, bigPercent?, retailPercent? }]（升冪）
+export function assembleHolders(stock, points, source = 'mock') {
+  const rows = points.map((p, i) => {
+    const prev = points[i - 1]
+    return {
+      date: p.date,
+      bigShares: p.bigShares,
+      bigNet: prev ? p.bigShares - prev.bigShares : 0,
+      retailShares: p.retailShares,
+      retailNet: prev ? p.retailShares - prev.retailShares : 0
+    }
+  })
+  const last = points[points.length - 1] || {}
+
+  return {
+    symbol: stock.symbol,
+    market: stock.market,
+    available: true,
+    unit: '張',
+    interval: 'weekly',
+    source,
+    thresholds: { big: '1,000 張以上', retail: '100 張以下' },
+    rows,
+    latest: {
+      bigShares: last.bigShares ?? null,
+      retailShares: last.retailShares ?? null,
+      bigPercent: last.bigPercent ?? null,
+      retailPercent: last.retailPercent ?? null,
+      date: last.date ?? null
+    },
+    isMock: source === 'mock'
   }
-  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
 }
 
-// 大戶（持股 ≥ 1,000 張）與散戶（持股 ≤ 100 張）的每日持股量與買賣超（單位：張）。
-// interval: '1d'（每日，近 60 交易日）或 '1wk'（每週彙總）。
-// 真實資料：集保 TDCC 股權分散為每週；「每日」需資料商加值資料。
-export function buildMockHolders(stock, { interval = '1d' } = {}) {
+// 大戶／散戶持股 —— 示範資料（每週點，模擬集保週資料）。
+export function buildMockHolders(stock) {
   if (stock.market !== 'TW') {
     return {
       symbol: stock.symbol,
@@ -116,33 +133,30 @@ export function buildMockHolders(stock, { interval = '1d' } = {}) {
   }
 
   const rng = makeRng(`${stock.symbol}:holders`)
-  const dates = tradingDates(60, 1, true)
   const scale = 0.5 + makeRng(`${stock.symbol}:hf`)() * 4
+  const weeks = tradingDates(16, 7, false)
 
   let big = Math.round(7_000_000 * scale)
   let retail = Math.round(2_200_000 * scale)
+  const total = big / 0.55
 
-  const days = dates.map((date) => {
-    // 大戶與散戶多半反向：大戶買超時散戶常同步賣超
-    const bigNet = Math.round((rng() - 0.47) * 4000 * scale)
-    const retailNet = Math.round(-bigNet * (0.4 + rng() * 0.5) + (rng() - 0.5) * 1500 * scale)
+  const points = weeks.map((date) => {
+    const bigNet = Math.round((rng() - 0.47) * 12000 * scale)
+    const retailNet = Math.round(-bigNet * (0.4 + rng() * 0.5) + (rng() - 0.5) * 4000 * scale)
     big = Math.max(1, big + bigNet)
     retail = Math.max(1, retail + retailNet)
-    return { date, bigShares: big, bigNet, retailShares: retail, retailNet }
+    return {
+      date,
+      bigShares: big,
+      retailShares: retail,
+      bigPercent: round2((big / total) * 100),
+      retailPercent: round2((retail / total) * 100)
+    }
   })
 
-  const normalizedInterval = interval === '1wk' ? '1wk' : '1d'
-  const latest = days[days.length - 1]
+  return assembleHolders(stock, points, 'mock')
+}
 
-  return {
-    symbol: stock.symbol,
-    market: stock.market,
-    available: true,
-    unit: '張',
-    interval: normalizedInterval,
-    thresholds: { big: '1,000 張以上', retail: '100 張以下' },
-    rows: normalizedInterval === '1wk' ? aggregateHoldersWeekly(days) : days,
-    latest: { bigShares: latest.bigShares, retailShares: latest.retailShares },
-    isMock: true
-  }
+function round2(v) {
+  return Math.round(v * 100) / 100
 }

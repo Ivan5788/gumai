@@ -16,7 +16,7 @@ export const SCREENER_RULES_META = [
   { id: 'up_streak_3', category: 'tech', label: '連 3 日上漲', hint: '連續 3 個交易日收漲' },
   { id: 'foreign_buy_streak', category: 'chips', label: '外資連買', hint: '外資連續 3 日買超' },
   { id: 'trust_buy', category: 'chips', label: '投信買超', hint: '投信最近一日買超' },
-  { id: 'big_holder_up', category: 'chips', label: '大戶持股增加', hint: '大戶持股較 5 日前增加' },
+  { id: 'retail_holder_down', category: 'chips', label: '散戶持股減少', hint: '散戶（≤100 張）持股較上週減少，籌碼趨於集中' },
   { id: 'big_power_turn_positive', category: 'chips', label: '大戶買賣力翻正', hint: '大戶買賣力由負轉正' }
 ]
 

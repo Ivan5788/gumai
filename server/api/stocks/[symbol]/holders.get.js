@@ -1,16 +1,29 @@
 import { resolveStock } from '../../../utils/stock-resolver'
-import { buildMockHolders } from '../../../utils/mock-institutional'
+import { assembleHolders, buildMockHolders } from '../../../utils/mock-institutional'
+import { getTdccHolders } from '../../../utils/tdcc'
 
-// GET /api/stocks/:symbol/holders?interval=1d|1wk
-// 大戶（≥1,000 張）／散戶（≤100 張）每日持股量與買賣超。台股專屬。
+const TDCC_ENABLED = process.env.NUXT_TDCC_ENABLED !== 'false'
+
+// GET /api/stocks/:symbol/holders
+// 大戶（≥1,000 張）／散戶（≤100 張）持股。台股取自集保結算所（每週結算）。
 export default defineEventHandler(async (event) => {
   const symbol = String(getRouterParam(event, 'symbol') || '').trim().toUpperCase()
-  const { interval } = getQuery(event)
 
   const stock = await resolveStock(symbol)
   if (!stock) {
     throw createError({ statusCode: 404, message: `找不到股票代號 ${symbol}` })
   }
 
-  return buildMockHolders(stock, { interval: interval === '1wk' ? '1wk' : '1d' })
+  if (TDCC_ENABLED && stock.market === 'TW' && stock.listing) {
+    try {
+      const t = await getTdccHolders(stock.symbol)
+      if (t && t.history.length) {
+        return assembleHolders(stock, t.history, 'tdcc')
+      }
+    } catch {
+      // 落回示範資料
+    }
+  }
+
+  return buildMockHolders(stock)
 })
