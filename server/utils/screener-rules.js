@@ -81,12 +81,14 @@ export const RULE_TESTS = {
     return last(institutional.rows)?.trust > 0
   },
 
-  // 散戶持股較上一週結算減少（籌碼集中）。需 ≥2 週集保資料。
+  // 散戶（≤100 張）持股較約一個月前（4 週）結算減少，籌碼趨於集中。
+  // 集保資料不足 5 週時，與最早一筆比較；需 ≥2 週。
   retail_holder_down: ({ holders }) => {
     if (!holders?.available) return false
     const rows = holders.rows
     if (rows.length < 2) return false
-    return last(rows).retailShares < rows[rows.length - 2].retailShares
+    const ref = rows[Math.max(0, rows.length - 5)]
+    return last(rows).retailShares < ref.retailShares
   },
 
   big_power_turn_positive: ({ bigPower }) => {

@@ -1,6 +1,6 @@
 <template>
   <div class="holders">
-    <p v-if="pending" class="holders__state">大戶／散戶資料載入中…（首次由集保資料抓取需數秒）</p>
+    <p v-if="pending" class="holders__state">大戶／散戶資料載入中…（首次回補近 8 週集保資料需約 10 秒）</p>
     <p v-else-if="error" class="holders__state">大戶／散戶資料載入失敗。</p>
     <p v-else-if="data && !data.available" class="holders__state">{{ data.reason }}</p>
 
@@ -44,7 +44,7 @@
         </p>
       </template>
       <p v-else class="holders__state">
-        週歷史資料累積中（目前 {{ rows.length }} 週），下週起可看到變化走勢。
+        集保週歷史尚在回補（目前 {{ rows.length }} 週），稍後重新整理即可看到走勢。
       </p>
 
       <div v-if="recentRows.length" class="holders__table-wrap">
@@ -109,7 +109,7 @@ const chartLevel = computed(() => rows.value.map((r) => ({ time: r.date, value: 
 
 const sourceNote = computed(() =>
   data.value?.source === 'tdcc'
-    ? '資料來源：集保結算所（每週結算）；歷史自本站接上後每週累積。'
+    ? '資料來源：集保結算所（每週五結算）；顯示近 8 週，其後每週自動接續。'
     : '示範資料。'
 )
 

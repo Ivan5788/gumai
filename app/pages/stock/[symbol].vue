@@ -124,7 +124,7 @@
     <section aria-labelledby="stock-holders">
       <h2 id="stock-holders">大戶與散戶持股變化</h2>
       <p class="section-hint">
-        大戶（持股 1,000 張以上）與散戶（持股 100 張以下）的每週持股量與增減，資料來自集保結算所。
+        大戶（持股 1,000 張以上）與散戶（持股 100 張以下）近 8 週的持股量與增減，資料來自集保結算所。
       </p>
       <HoldersPanel :symbol="stock.symbol" />
     </section>

@@ -95,7 +95,8 @@ async function institutionalFor(stock) {
 async function holdersFor(stock) {
   if (stock.market === 'TW' && stock.listing) {
     try {
-      const t = await getTdccHolders(stock.symbol)
+      // 掃描時不即時回補（避免對集保大量請求）；由 tdcc-backfill 外掛緩慢預熱。
+      const t = await getTdccHolders(stock.symbol, { backfill: false })
       if (t && t.history.length) return assembleHolders(stock, t.history, 'tdcc')
     } catch {
       // 落回示範
