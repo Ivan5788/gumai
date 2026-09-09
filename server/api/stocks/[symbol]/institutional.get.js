@@ -1,4 +1,4 @@
-import { findMockStock } from '../../../utils/mock-stocks'
+import { resolveStock } from '../../../utils/stock-resolver'
 import { assembleInstitutional, buildMockInstitutional } from '../../../utils/mock-institutional'
 import { getFinmindInstitutional } from '../../../utils/finmind'
 
@@ -10,9 +10,9 @@ export default defineEventHandler(async (event) => {
   const symbol = String(getRouterParam(event, 'symbol') || '').trim().toUpperCase()
   const interval = getQuery(event).interval === '1wk' ? '1wk' : '1d'
 
-  const stock = findMockStock(symbol)
+  const stock = await resolveStock(symbol)
   if (!stock) {
-    throw createError({ statusCode: 404, statusMessage: `找不到股票代號 ${symbol}` })
+    throw createError({ statusCode: 404, message: `找不到股票代號 ${symbol}` })
   }
 
   if (FINMIND_ENABLED && stock.market === 'TW' && stock.listing === 'TWSE') {

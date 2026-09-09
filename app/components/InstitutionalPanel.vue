@@ -115,7 +115,8 @@ const { data, status, error } = useApiFetch(
   }
 )
 
-const pending = computed(() => status.value === 'pending' && !data.value)
+// server 端不抓取（server:false），一律先顯示載入態，避免 hydration mismatch
+const pending = computed(() => !data.value && !error.value)
 
 const rows = computed(() => data.value?.rows ?? [])
 const recentRows = computed(() => [...rows.value].reverse().slice(0, 24))

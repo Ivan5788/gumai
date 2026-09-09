@@ -71,6 +71,35 @@ async function getCached(ySymbol, interval, range) {
   }
 }
 
+// 代號 meta（名稱 / 幣別 / 昨收）。供代號解析用。
+export async function getYahooMeta(symbol) {
+  const key = `yahoo:meta:${symbol}`
+  const store = useStorage('data')
+  const cached = await store.getItem(key)
+  if (cached && Date.now() - cached.at < 24 * 60 * 60 * 1000) return cached.value
+
+  try {
+    const res = await $fetch(`${BASE}/${encodeURIComponent(symbol)}`, {
+      params: { interval: '1d', range: '5d' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+      timeout: 10000,
+      retry: 0
+    })
+    const m = res?.chart?.result?.[0]?.meta
+    if (!m || m.instrumentType === 'INDEX') return cached?.value || null
+    const value = {
+      name: m.shortName || m.longName || symbol,
+      currency: m.currency || 'USD',
+      previousClose: m.chartPreviousClose ?? m.previousClose ?? null,
+      exchange: m.exchangeName || null
+    }
+    await store.setItem(key, { at: Date.now(), value })
+    return value
+  } catch {
+    return cached?.value || null
+  }
+}
+
 export function getYahooHourly(stock) {
   return getCached(yahooSymbol(stock), '60m', '3mo')
 }
