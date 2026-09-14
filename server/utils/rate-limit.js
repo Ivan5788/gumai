@@ -5,9 +5,17 @@
 // 這裡先解決單機/單一部署最常見也最直接的濫用情境。
 
 // 依路徑前綴給不同的節流規則：越接近「會打外部 API」的端點越嚴格。
+//
+// /api/stocks/** 的上限訂得比較寬鬆（100），是吃過一次虧調的：個股連結多的頁面
+// （如大型權值股完整清單，最多 83 檔）被使用者一次捲動整頁時，NuxtLink 的
+// viewport 預抓（prefetch）會在幾秒內對每個連結各打一次 /stock/:symbol/_payload.json，
+// 該渲染內部又各自呼叫一次 /api/stocks/:symbol——是正常瀏覽行為，不是濫用。
+// 已把那些股票清單的 NuxtLink 改成 prefetch-on="interaction"（滑過/聚焦才預抓，
+// 不會整頁一捲就全部打），這裡的上限只是保留合理餘裕，真正擋濫用的是
+// stock-resolver.js 的查無資料負面快取——同一個假代號不會被重複打好幾次。
 const RULES = [
   { test: (p) => p.startsWith('/api/stocks/search'), windowMs: 10_000, max: 20 },
-  { test: (p) => p.startsWith('/api/stocks/'), windowMs: 10_000, max: 30 },
+  { test: (p) => p.startsWith('/api/stocks/'), windowMs: 10_000, max: 100 },
   { test: (p) => p.startsWith('/api/market/'), windowMs: 10_000, max: 30 },
   { test: (p) => p.startsWith('/api/me/'), windowMs: 10_000, max: 30 },
   { test: (p) => p.startsWith('/api/'), windowMs: 10_000, max: 60 }

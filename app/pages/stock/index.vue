@@ -15,7 +15,7 @@
       <h2 id="tw-stocks" class="section-title">台股</h2>
       <ul class="stock-links">
         <li v-for="s in twStocks" :key="s.symbol">
-          <NuxtLink :to="`/stock/${s.symbol}`">
+          <NuxtLink :to="`/stock/${s.symbol}`" prefetch-on="interaction">
             <span>{{ s.name }}</span>
             <span class="stock-links__meta">{{ s.symbol }} · {{ s.industry }}</span>
           </NuxtLink>
@@ -27,7 +27,7 @@
       <h2 id="us-stocks" class="section-title">美股</h2>
       <ul class="stock-links">
         <li v-for="s in usStocks" :key="s.symbol">
-          <NuxtLink :to="`/stock/${s.symbol}`">
+          <NuxtLink :to="`/stock/${s.symbol}`" prefetch-on="interaction">
             <span>{{ s.name }}</span>
             <span class="stock-links__meta">{{ s.symbol }} · {{ s.industry }}</span>
           </NuxtLink>

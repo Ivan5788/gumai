@@ -31,7 +31,7 @@
       <h2 id="popular-stocks" class="section-title">熱門股票</h2>
       <ul class="stock-links">
         <li v-for="s in stocks" :key="s.symbol">
-          <NuxtLink :to="`/stock/${s.symbol}`">
+          <NuxtLink :to="`/stock/${s.symbol}`" prefetch-on="interaction">
             <span class="stock-links__name">{{ s.name }}</span>
             <span class="stock-links__meta">{{ s.symbol }} · {{ s.market === 'TW' ? '台股' : '美股' }}</span>
           </NuxtLink>

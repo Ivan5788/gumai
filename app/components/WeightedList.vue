@@ -10,7 +10,7 @@
     <p v-else-if="error" class="weighted__state">載入失敗，請稍後再試。</p>
     <ol v-else class="weighted__list">
       <li v-for="row in rows" :key="row.symbol">
-        <NuxtLink :to="`/stock/${row.symbol}`" :data-trend="trendOf(row.change)">
+        <NuxtLink :to="`/stock/${row.symbol}`" prefetch-on="interaction" :data-trend="trendOf(row.change)">
           <span class="weighted__rank">{{ row.rank }}</span>
           <span class="weighted__name">
             {{ row.name }}
