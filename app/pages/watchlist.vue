@@ -178,7 +178,7 @@ function trendClass(change) {
   return t === 'up' ? 'is-up' : t === 'down' ? 'is-down' : ''
 }
 
-const title = '我的收藏 | StockPulse'
+const title = '我的收藏 | 股脈'
 usePageSeo({ title, description: '管理你的自選股與收藏分類。', path: '/watchlist' })
 useHead({ meta: [{ name: 'robots', content: 'noindex' }] })
 </script>

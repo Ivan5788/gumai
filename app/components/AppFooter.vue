@@ -2,7 +2,7 @@
   <footer class="app-footer">
     <div class="app-footer__inner">
       <div class="app-footer__brand">
-        <span class="app-footer__name">StockPulse</span>
+        <span class="app-footer__name">股脈 GuMai</span>
         <p class="app-footer__desc">台股與美股即時看盤、技術分析與選股平台。</p>
       </div>
 
@@ -31,7 +31,7 @@
           資料來源：臺灣證券交易所、證券櫃檯買賣中心、臺灣集中保管結算所、FinMind、Yahoo
           Finance。行情多為盤後或延遲資料，僅供參考，不構成投資建議。
         </p>
-        <p>© {{ year }} StockPulse</p>
+        <p>© {{ year }} 股脈 GuMai</p>
       </div>
     </div>
   </footer>

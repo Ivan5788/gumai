@@ -12,7 +12,7 @@ const OPENDATA_URL = 'https://opendata.tdcc.com.tw/getOD.ashx?id=1-5'
 const QRY_URL = 'https://www.tdcc.com.tw/portal/zh/smWeb/qryStock'
 const SNAPSHOT_TTL = 12 * 60 * 60 * 1000
 const DATES_TTL = 12 * 60 * 60 * 1000
-const UA = 'Mozilla/5.0 (StockPulse; +holders)'
+const UA = 'Mozilla/5.0 (GuMai; +holders)'
 
 let memo = null // opendata 最新一週快照
 let datesMemo = null // { at, dates: [yyyymmdd 由新到舊] }

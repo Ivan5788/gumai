@@ -170,7 +170,7 @@ const quoteTime = computed(() =>
 const marketLabel = computed(() => getMarket(stock.value.market)?.label ?? stock.value.market)
 
 const title = computed(
-  () => `${stock.value.name}（${stock.value.symbol}）股價、即時行情與技術分析 | StockPulse`
+  () => `${stock.value.name}（${stock.value.symbol}）股價、即時行情與技術分析 | 股脈`
 )
 const description = computed(
   () =>

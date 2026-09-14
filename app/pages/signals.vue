@@ -177,9 +177,9 @@ const poolNote = computed(() => {
   return '指標快照建立中，暫時顯示示範資料，稍後重新整理即為實際資料。'
 })
 
-const title = '關鍵訊號搜尋｜黃金交叉、突破、外資翻多 | StockPulse'
+const title = '關鍵訊號搜尋｜黃金交叉、突破、外資翻多 | 股脈'
 const description =
-  'StockPulse 關鍵訊號搜尋，掃描台股與美股近期站上均線、黃金交叉、創新高、帶量上漲、跳空、外資翻多與大戶買賣力訊號。'
+  '股脈 關鍵訊號搜尋，掃描台股與美股近期站上均線、黃金交叉、創新高、帶量上漲、跳空、外資翻多與大戶買賣力訊號。'
 const { url, siteUrl } = usePageSeo({ title, description, path: '/signals' })
 useWebPageJsonLd({
   name: title,

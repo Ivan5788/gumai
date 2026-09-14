@@ -39,7 +39,7 @@ async function fetchMonthRaw(stockNo, year, month) {
   const date = `${year}${String(month).padStart(2, '0')}01`
   const res = await $fetch(STOCK_DAY, {
     params: { date, stockNo, response: 'json' },
-    headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
     timeout: 12000,
     retry: 0
   })
@@ -109,7 +109,7 @@ let allMemo = null
 async function fetchStockDayAllRaw() {
   const text = await throttle(() =>
     $fetch(STOCK_DAY_ALL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
       timeout: 15000,
       retry: 0,
       responseType: 'text'
@@ -266,7 +266,7 @@ export async function getTwseListedCompanies() {
   }
 
   const data = await $fetch('https://openapi.twse.com.tw/v1/opendata/t187ap03_L', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
     timeout: 15000,
     retry: 0
   })

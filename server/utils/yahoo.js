@@ -27,7 +27,7 @@ function yahooAltSymbol(stock) {
 async function fetchChart(ySymbol, interval, range) {
   const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
     params: { interval, range, includePrePost: 'false' },
-    headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
     timeout: 12000,
     retry: 0
   })
@@ -90,7 +90,7 @@ export async function getYahooMeta(symbol) {
   try {
     const res = await $fetch(`${BASE}/${encodeURIComponent(symbol)}`, {
       params: { interval: '1d', range: '5d' },
-      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
       timeout: 10000,
       retry: 0
     })
@@ -117,7 +117,7 @@ async function fetchQuoteFor(ySymbol) {
 
   const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
     params: { interval: '1d', range: '1d' },
-    headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
     timeout: 10000,
     retry: 0
   })
@@ -201,7 +201,7 @@ export async function getYahooIntradayBySymbol(ySymbol) {
   try {
     const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
       params: { interval: '1m', range: '1d', includePrePost: 'false' },
-      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
       timeout: 12000,
       retry: 0
     })

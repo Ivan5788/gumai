@@ -1,7 +1,7 @@
 <template>
   <header class="app-header">
     <div class="app-header__inner">
-      <NuxtLink to="/" class="brand" aria-label="StockPulse 首頁">
+      <NuxtLink to="/" class="brand" aria-label="股脈首頁">
         <span class="brand__mark" aria-hidden="true">
           <svg viewBox="0 0 32 32" fill="none">
             <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.14" />
@@ -15,8 +15,8 @@
           </svg>
         </span>
         <span class="brand__text">
-          <span class="brand__name">StockPulse</span>
-          <span class="brand__tag">Market Terminal</span>
+          <span class="brand__name">股脈</span>
+          <span class="brand__tag">GuMai · Market Terminal</span>
         </span>
       </NuxtLink>
 

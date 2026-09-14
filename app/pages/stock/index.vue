@@ -38,9 +38,9 @@
 </template>
 
 <script setup>
-const title = '個股分析｜台股與美股股價、K 線與籌碼 | StockPulse'
+const title = '個股分析｜台股與美股股價、K 線與籌碼 | 股脈'
 const description =
-  'StockPulse 個股分析：即時報價、當日走勢、日 K／週 K／60 分 K、均線、三大法人買賣超、大戶與散戶持股變化與大戶買賣力。'
+  '股脈 個股分析：即時報價、當日走勢、日 K／週 K／60 分 K、均線、三大法人買賣超、大戶與散戶持股變化與大戶買賣力。'
 
 const { data: stockData } = await useApiFetch('/stocks', { key: 'stock-index-list' })
 const items = computed(() => stockData.value?.items ?? [])

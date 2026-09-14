@@ -4,9 +4,9 @@
 
     <header class="page__intro">
       <p class="eyebrow">台股 · 美股 · 即時看盤</p>
-      <h1>StockPulse 台股與美股即時看盤與選股平台</h1>
+      <h1>股脈 台股與美股即時看盤與選股平台</h1>
       <p class="lede">
-        StockPulse 提供台灣加權指數、櫃買指數與台股、美股個股的即時報價、K 線技術分析、三大法人與大戶籌碼、選股與關鍵訊號搜尋。
+        股脈 提供台灣加權指數、櫃買指數與台股、美股個股的即時報價、K 線技術分析、三大法人與大戶籌碼、選股與關鍵訊號搜尋。
         登入後可建立自選股分類，並在 K 線圖上自行畫線，紀錄保存到帳號。
       </p>
     </header>
@@ -51,9 +51,9 @@
 </template>
 
 <script setup>
-const title = 'StockPulse｜台股與美股即時看盤與選股平台'
+const title = '股脈｜台股與美股即時看盤與選股平台'
 const description =
-  'StockPulse 是台股與美股即時看盤、技術分析與選股平台，提供即時報價、日 K／週 K／60 分 K、均線、三大法人、大戶籌碼、選股與關鍵訊號搜尋。'
+  '股脈 是台股與美股即時看盤、技術分析與選股平台，提供即時報價、日 K／週 K／60 分 K、均線、三大法人、大戶籌碼、選股與關鍵訊號搜尋。'
 
 const { data: stockData } = await useApiFetch('/stocks', { key: 'home-stocks' })
 const stocks = computed(() => stockData.value?.items ?? [])

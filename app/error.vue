@@ -20,12 +20,12 @@ const title = computed(() =>
 )
 const description = computed(() =>
   props.error?.statusCode === 404
-    ? '請確認網址，或從 StockPulse 首頁重新開始。'
+    ? '請確認網址，或從 股脈 首頁重新開始。'
     : '伺服器暫時無法完成這個請求。'
 )
 
 useSeoMeta({
-  title: () => `${title.value} | StockPulse`,
+  title: () => `${title.value} | 股脈`,
   description,
   robots: 'noindex'
 })

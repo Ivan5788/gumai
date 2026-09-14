@@ -15,7 +15,7 @@ import { getYahooChartBySymbol, getYahooIntradayBySymbol } from './yahoo'
 const TAIEX_URL = 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST?response=json'
 const TPEX_URL = 'https://www.tpex.org.tw/openapi/v1/tpex_index'
 const TTL = 10 * 60 * 1000
-const UA = 'Mozilla/5.0 (StockPulse)'
+const UA = 'Mozilla/5.0 (GuMai)'
 
 const FINMIND_ENABLED = process.env.NUXT_FINMIND_ENABLED !== 'false'
 const YAHOO_ENABLED = process.env.NUXT_YAHOO_ENABLED !== 'false'

@@ -165,9 +165,9 @@ function trendClass(change) {
   return t === 'up' ? 'is-up' : t === 'down' ? 'is-down' : ''
 }
 
-const title = '股票選股系統｜技術面與籌碼面選股 | StockPulse'
+const title = '股票選股系統｜技術面與籌碼面選股 | 股脈'
 const description =
-  'StockPulse 選股系統，依站上均線、黃金交叉、突破新高、爆量、跳空、外資連買、投信買超、大戶買賣力等條件篩選台股與美股。'
+  '股脈 選股系統，依站上均線、黃金交叉、突破新高、爆量、跳空、外資連買、投信買超、大戶買賣力等條件篩選台股與美股。'
 const { url, siteUrl } = usePageSeo({ title, description, path: '/screener' })
 useWebPageJsonLd({
   name: title,

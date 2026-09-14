@@ -32,7 +32,7 @@ if (!['TWSE', 'TPEX'].includes(market.value)) {
 
 const label = computed(() => (market.value === 'TWSE' ? '上市' : '上櫃'))
 
-const title = computed(() => `台股${label.value}大型權值股完整清單 | StockPulse`)
+const title = computed(() => `台股${label.value}大型權值股完整清單 | 股脈`)
 const description = computed(
   () => `台股${label.value}大型權值股完整清單，含即時報價與漲跌，點選個股可查看 K 線走勢與三大法人籌碼。`
 )

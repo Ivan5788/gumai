@@ -84,7 +84,7 @@ if (error.value || !idx.value) {
 
 const trend = computed(() => trendOf(idx.value.change))
 
-const title = computed(() => `${idx.value.name}走勢圖、即時點數與技術分析 | StockPulse`)
+const title = computed(() => `${idx.value.name}走勢圖、即時點數與技術分析 | 股脈`)
 const description = computed(
   () =>
     `查看${idx.value.name}最新點數、漲跌與開高低，日 K、週 K${
