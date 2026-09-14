@@ -5,7 +5,9 @@
 // 回傳 candle：{ time: 'YYYY-MM-DD', open, high, low, close, volume(張) }
 
 const STOCK_DAY = 'https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY'
+const STOCK_DAY_ALL = 'https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json'
 const CACHE_TTL_CURRENT = 30 * 60 * 1000 // 當月資料 30 分鐘
+const ALL_TTL = 20 * 60 * 1000
 
 // 全域節流：串起所有對 TWSE 的請求，彼此間隔 ~1.2s
 let queue = Promise.resolve()
@@ -18,6 +20,14 @@ function throttle(task) {
 function rocToIso(roc) {
   const [y, m, d] = String(roc).split('/')
   return `${Number(y) + 1911}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
+// STOCK_DAY_ALL 的日期是無分隔的民國年月日（如 "1150911"），年份位數不固定，
+// 從尾端取月日較穩妥。
+function rocCompactToIso(roc) {
+  const s = String(roc)
+  const y = Number(s.slice(0, s.length - 4)) + 1911
+  return `${y}-${s.slice(-4, -2)}-${s.slice(-2)}`
 }
 
 function toNumber(s) {
@@ -86,6 +96,103 @@ async function getMonth(stockNo, year, month) {
     return rows.length ? rows : cached?.rows || []
   } catch {
     return cached?.rows || []
+  }
+}
+
+// ── STOCK_DAY_ALL：全部上市股票、最新一個交易日，一次請求 ──────
+// 只回「最新一天」，沒有歷史日期參數（帶 date= 會被 WAF 擋）。
+// 用途：股票池每日增量更新最新一根 K，取代逐檔打 STOCK_DAY，把日常維護
+// 從「最多 N 檔請求」降到「1 次請求」。無法用來補歷史月份。
+
+let allMemo = null
+
+async function fetchStockDayAllRaw() {
+  const text = await throttle(() =>
+    $fetch(STOCK_DAY_ALL, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+      timeout: 15000,
+      retry: 0,
+      responseType: 'text'
+    })
+  )
+
+  const lines = String(text)
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+
+  const rows = new Map()
+  let isoDate = null
+
+  // 標頭：日期,證券代號,證券名稱,成交股數,成交金額,開盤價,最高價,最低價,收盤價,漲跌價差,成交筆數
+  for (let i = 1; i < lines.length; i += 1) {
+    const parts = lines[i].replace(/^"|"$/g, '').split('","')
+    if (parts.length < 9) continue
+    const [rocDate, code, , sharesStr, , openStr, highStr, lowStr, closeStr] = parts
+    const open = toNumber(openStr)
+    const high = toNumber(highStr)
+    const low = toNumber(lowStr)
+    const close = toNumber(closeStr)
+    if (open === null || high === null || low === null || close === null) continue
+    if (!isoDate) isoDate = rocCompactToIso(rocDate)
+    rows.set(code.trim(), {
+      time: isoDate,
+      open,
+      high,
+      low,
+      close,
+      volume: Math.round((toNumber(sharesStr) || 0) / 1000)
+    })
+  }
+
+  return { date: isoDate, entries: [...rows] }
+}
+
+async function getStockDayAll() {
+  if (allMemo && Date.now() - allMemo.at < ALL_TTL) return allMemo
+  const store = useStorage('data')
+  const cached = await store.getItem('twse:day-all')
+  if (cached && Date.now() - cached.at < ALL_TTL) {
+    allMemo = cached
+    return allMemo
+  }
+  try {
+    const { date, entries } = await fetchStockDayAllRaw()
+    if (date && entries.length) {
+      const fresh = { at: Date.now(), date, entries }
+      await store.setItem('twse:day-all', fresh)
+      allMemo = fresh
+      return allMemo
+    }
+  } catch {
+    // 落回快取
+  }
+  return allMemo || cached || null
+}
+
+// 把 STOCK_DAY_ALL 的最新一天合併進「已存在」的當月快取（只補新的一天）。
+// 該股票、該月份還沒被抓過（沒有既有快取）時略過 —— 避免只有單日、其餘留白，
+// 交給 getTwseDailyCandles 的正常流程（逐檔 STOCK_DAY）第一次完整補齊該月。
+export async function refreshTodayForAll(stockNumbers) {
+  const snap = await getStockDayAll()
+  if (!snap?.date || !stockNumbers?.length) return
+
+  const byCode = new Map(snap.entries)
+  const [y, m] = snap.date.split('-')
+  const store = useStorage('data')
+
+  for (const stockNo of stockNumbers) {
+    const row = byCode.get(stockNo)
+    if (!row) continue
+
+    const key = `twse:day:${stockNo}:${y}-${m}`
+    const existing = await store.getItem(key)
+    if (!existing?.rows?.length) continue // 該月尚未建立，交給正常流程
+
+    const rows = existing.rows.filter((r) => r.time !== row.time)
+    rows.push(row)
+    rows.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+    await store.setItem(key, { at: Date.now(), rows })
   }
 }
 

@@ -6,7 +6,7 @@ import { MOCK_STOCKS } from './mock-stocks'
 import { POOL } from './stock-pool'
 import { resolveStock } from './stock-resolver'
 import { buildMockCandles } from './mock-history'
-import { getTwseDailyCandles } from './twse'
+import { getTwseDailyCandles, refreshTodayForAll } from './twse'
 import { getYahooDaily } from './yahoo'
 import { getFinmindInstitutional } from './finmind'
 import {
@@ -22,6 +22,8 @@ import { scanSignals } from './signal-scanner'
 
 const REFRESH_MS = 3 * 60 * 60 * 1000
 const SIGNAL_LOOKBACK = 15
+// 股票池裡看起來像台股代號的（數字開頭，選擇性帶一碼字母，如 00878）
+const TW_CODE_RE = /^\d{4,6}[A-Z]?$/
 
 let snapshot = null // { rows, source: 'live' | 'mock', builtAt }
 let building = false
@@ -120,6 +122,15 @@ function mockSnapshot() {
 
 async function buildLive() {
   const rows = []
+
+  // 用 STOCK_DAY_ALL 一次請求，把股票池裡所有台股當月快取的最新一天補齊，
+  // 取代逐檔打 STOCK_DAY（只影響「已存在」的當月快取，不會建立新月份）。
+  try {
+    await refreshTodayForAll(POOL.filter((s) => TW_CODE_RE.test(s)))
+  } catch {
+    // 略過，退回逐檔抓取（candlesFor 仍會照常運作）
+  }
+
   for (const symbol of POOL) {
     try {
       const stock = await resolveStock(symbol)

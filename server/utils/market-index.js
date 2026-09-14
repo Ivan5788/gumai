@@ -71,7 +71,7 @@ function pack({ code, name, market, close, prevClose, open, high, low, date, sou
   }
 }
 
-async function fetchTaiex() {
+async function fetchTaiexFromTwse() {
   const res = await $fetch(TAIEX_URL, {
     headers: { 'User-Agent': UA },
     timeout: 12000,
@@ -97,6 +97,38 @@ async function fetchTaiex() {
     date: toIso(res.date || lastRow[0]),
     source: 'twse'
   })
+}
+
+// 備援：證交所 MI_5MINS_HIST 偶爾會被 WAF 暫時擋下（跟本站請求量無關的獨立限流）。
+// 這種時候改用 Yahoo 的 ^TWII 日線，取最後兩根算漲跌。
+async function fetchTaiexFromYahoo() {
+  const candles = await getYahooChartBySymbol('^TWII', '1d', '5d')
+  if (candles.length < 2) return null
+  const last = candles[candles.length - 1]
+  const prev = candles[candles.length - 2]
+  return pack({
+    code: 'TAIEX',
+    name: '加權指數',
+    market: '上市',
+    close: last.close,
+    prevClose: prev.close,
+    open: last.open,
+    high: last.high,
+    low: last.low,
+    date: last.time,
+    source: 'yahoo'
+  })
+}
+
+async function fetchTaiex() {
+  try {
+    const r = await fetchTaiexFromTwse()
+    if (r) return r
+  } catch {
+    // 落到 Yahoo
+  }
+  if (!YAHOO_ENABLED) return null
+  return fetchTaiexFromYahoo()
 }
 
 async function fetchTpex() {
@@ -148,8 +180,14 @@ export async function getMarketIndices() {
   try {
     const fresh = await build()
     if (fresh.indices.length) {
-      await store.setItem('index:snapshot', fresh)
-      memo = fresh
+      // 依代號合併：這次沒抓到的指數（單一來源暫時失敗/被擋）保留上次的值，
+      // 不要讓單一指數的短暫失敗把另一個已經抓到的指數也一起沖掉。
+      const byCode = new Map((cached?.indices || []).map((i) => [i.code, i]))
+      for (const i of fresh.indices) byCode.set(i.code, i)
+      const merged = { at: fresh.at, updatedAt: fresh.updatedAt, indices: [...byCode.values()] }
+
+      await store.setItem('index:snapshot', merged)
+      memo = merged
       return memo
     }
   } catch {
