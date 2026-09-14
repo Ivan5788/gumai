@@ -47,8 +47,21 @@ const items = computed(() => stockData.value?.items ?? [])
 const twStocks = computed(() => items.value.filter((s) => s.market === 'TW'))
 const usStocks = computed(() => items.value.filter((s) => s.market === 'US'))
 
-const { url } = usePageSeo({ title, description, path: '/stock' })
-useWebPageJsonLd({ name: title, description, url })
+const { url, siteUrl } = usePageSeo({ title, description, path: '/stock' })
+useWebPageJsonLd({
+  name: title,
+  description,
+  url,
+  extra: [
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: '首頁', item: `${siteUrl}/` },
+        { '@type': 'ListItem', position: 2, name: '個股分析', item: url.value }
+      ]
+    }
+  ]
+})
 </script>
 
 <style lang="scss" scoped>

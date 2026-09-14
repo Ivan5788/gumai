@@ -26,7 +26,8 @@ const description = computed(() =>
 
 useSeoMeta({
   title: () => `${title.value} | StockPulse`,
-  description
+  description,
+  robots: 'noindex'
 })
 </script>
 

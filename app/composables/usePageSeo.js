@@ -2,6 +2,7 @@ export function usePageSeo({ title, description, path }) {
   const config = useRuntimeConfig()
   const siteUrl = String(config.public.siteUrl).replace(/\/$/, '')
   const url = computed(() => `${siteUrl}${unref(path)}`)
+  const ogImage = `${siteUrl}/og-image.png`
 
   useSeoMeta({
     title,
@@ -12,16 +13,21 @@ export function usePageSeo({ title, description, path }) {
     ogUrl: url,
     ogSiteName: config.public.siteName,
     ogLocale: 'zh_TW',
-    // 目前無 OG 圖，用 summary；有設計稿後改 summary_large_image + og:image
-    twitterCard: 'summary',
+    ogImage,
+    ogImageWidth: 1200,
+    ogImageHeight: 630,
+    ogImageAlt: config.public.siteName,
+    twitterCard: 'summary_large_image',
     twitterTitle: title,
-    twitterDescription: description
+    twitterDescription: description,
+    twitterImage: ogImage
   })
 
   useHead({
     htmlAttrs: {
       lang: 'zh-Hant'
     },
+    meta: [{ name: 'theme-color', content: '#0b0f14' }],
     link: computed(() => [
       {
         rel: 'canonical',

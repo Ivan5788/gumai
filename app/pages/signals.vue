@@ -180,8 +180,21 @@ const poolNote = computed(() => {
 const title = '關鍵訊號搜尋｜黃金交叉、突破、外資翻多 | StockPulse'
 const description =
   'StockPulse 關鍵訊號搜尋，掃描台股與美股近期站上均線、黃金交叉、創新高、帶量上漲、跳空、外資翻多與大戶買賣力訊號。'
-const { url } = usePageSeo({ title, description, path: '/signals' })
-useWebPageJsonLd({ name: title, description, url })
+const { url, siteUrl } = usePageSeo({ title, description, path: '/signals' })
+useWebPageJsonLd({
+  name: title,
+  description,
+  url,
+  extra: [
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: '首頁', item: `${siteUrl}/` },
+        { '@type': 'ListItem', position: 2, name: '關鍵訊號搜尋', item: url.value }
+      ]
+    }
+  ]
+})
 </script>
 
 <style lang="scss" scoped>

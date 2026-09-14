@@ -168,8 +168,21 @@ function trendClass(change) {
 const title = '股票選股系統｜技術面與籌碼面選股 | StockPulse'
 const description =
   'StockPulse 選股系統，依站上均線、黃金交叉、突破新高、爆量、跳空、外資連買、投信買超、大戶買賣力等條件篩選台股與美股。'
-const { url } = usePageSeo({ title, description, path: '/screener' })
-useWebPageJsonLd({ name: title, description, url })
+const { url, siteUrl } = usePageSeo({ title, description, path: '/screener' })
+useWebPageJsonLd({
+  name: title,
+  description,
+  url,
+  extra: [
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: '首頁', item: `${siteUrl}/` },
+        { '@type': 'ListItem', position: 2, name: '選股系統', item: url.value }
+      ]
+    }
+  ]
+})
 </script>
 
 <style lang="scss" scoped>

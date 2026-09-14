@@ -1,5 +1,22 @@
 import { MOCK_STOCKS } from '../utils/mock-stocks'
 
+// TWSE_WEIGHTED / TPEX_WEIGHTED 來自 shared/utils/index-constituents.js，
+// app 與 server 皆自動匯入，不需 import。
+function stockSitemapEntries() {
+  const seen = new Set()
+  const entries = []
+  const add = (symbol) => {
+    if (seen.has(symbol)) return
+    seen.add(symbol)
+    entries.push({ path: `/stock/${symbol}`, changefreq: 'daily', priority: '0.7' })
+  }
+  for (const s of MOCK_STOCKS) add(s.symbol)
+  // 大型權值股清單：已是真實存在、可被索引的個股頁，之前漏掉了
+  for (const s of TWSE_WEIGHTED) add(s.symbol)
+  for (const s of TPEX_WEIGHTED) add(s.symbol)
+  return entries
+}
+
 function xmlEscape(value) {
   return value
     .replaceAll('&', '&amp;')
@@ -22,12 +39,8 @@ export default defineEventHandler((event) => {
     { path: '/stock', changefreq: 'weekly', priority: '0.6' },
     { path: '/screener', changefreq: 'daily', priority: '0.8' },
     { path: '/signals', changefreq: 'hourly', priority: '0.8' },
-    // 個股頁：目前為 mock 股票池，未來由後端提供上市櫃 / 美股清單
-    ...MOCK_STOCKS.map((s) => ({
-      path: `/stock/${s.symbol}`,
-      changefreq: 'daily',
-      priority: '0.7'
-    }))
+    // 個股頁：mock 股票 + 大型權值股清單（上市/上櫃合計 83 檔），去重
+    ...stockSitemapEntries()
   ]
 
   const urls = entries
