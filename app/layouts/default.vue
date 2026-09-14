@@ -6,6 +6,10 @@
         <slot />
       </div>
     </main>
+    <AppFooter />
+    <ClientOnly>
+      <BackToTop />
+    </ClientOnly>
   </div>
 </template>
 

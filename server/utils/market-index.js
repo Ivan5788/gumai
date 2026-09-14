@@ -166,8 +166,15 @@ async function build() {
   return { at: Date.now(), updatedAt: new Date().toISOString(), indices }
 }
 
-// { updatedAt, indices: [{ code, name, market, value, change, changePercent, prevClose, open, high, low, date, source }] }
-export async function getMarketIndices() {
+// 固定顯示順序（加權在左、櫃買在右），跟合併/快取的先後順序無關
+const DISPLAY_ORDER = ['TAIEX', 'TPEX']
+function orderIndices(list) {
+  return [...(list || [])].sort(
+    (a, b) => DISPLAY_ORDER.indexOf(a.code) - DISPLAY_ORDER.indexOf(b.code)
+  )
+}
+
+async function getMarketIndicesRaw() {
   if (memo && Date.now() - memo.at < TTL) return memo
 
   const store = useStorage('data')
@@ -194,6 +201,14 @@ export async function getMarketIndices() {
     // 落回快取
   }
   return memo || cached || { updatedAt: null, indices: [] }
+}
+
+// { updatedAt, indices: [{ code, name, market, value, change, changePercent, prevClose, open, high, low, date, source }] }
+// 顯示順序固定（加權在左、櫃買在右），跟合併/快取的先後順序無關 —— 統一在最外層排序，
+// 不管走哪個 return 分支都會套用，不會因為漏改某個分支又跑掉。
+export async function getMarketIndices() {
+  const data = await getMarketIndicesRaw()
+  return { ...data, indices: orderIndices(data.indices) }
 }
 
 // ── 指數走勢圖 ──────────────────────────────────────────
