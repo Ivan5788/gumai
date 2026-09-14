@@ -38,6 +38,15 @@
         </li>
       </ul>
     </section>
+
+    <section aria-labelledby="weighted-stocks">
+      <h2 id="weighted-stocks" class="section-title">大型權值股</h2>
+      <p class="section-hint">台股上市與上櫃的大型權值股（靜態清單，定期校正），完整清單見各自的「完整清單」連結。</p>
+      <div class="weighted-grid">
+        <WeightedList market="TWSE" :limit="10" />
+        <WeightedList market="TPEX" :limit="10" />
+      </div>
+    </section>
   </article>
 </template>
 
@@ -84,6 +93,23 @@ useWebPageJsonLd({
   margin-bottom: $space-4;
   font-size: 1.05rem;
   font-weight: 650;
+}
+
+.section-hint {
+  margin: -#{$space-2} 0 $space-4;
+  color: $color-text-muted;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.weighted-grid {
+  display: grid;
+  gap: $space-5;
+  grid-template-columns: 1fr;
+
+  @include tablet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .panel-grid {
