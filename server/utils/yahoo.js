@@ -15,6 +15,15 @@ export function yahooSymbol(stock) {
   return `${stock.symbol}.TW`
 }
 
+// 少數上櫃股在 Yahoo 全球資料庫裡其實掛在 .TW（跟正式上市/上櫃別不一致，
+// 例如藥華藥 6446、保瑞 6472 — Yahoo 奇摩股市是完全不同的資料來源，不受影響）。
+// 回傳依 stock.listing 對調過的另一個後綴，非台股回 null。
+function yahooAltSymbol(stock) {
+  if (stock.market !== 'TW') return null
+  const altSuffix = stock.listing === 'TPEx' ? 'TW' : 'TWO'
+  return `${stock.symbol}.${altSuffix}`
+}
+
 async function fetchChart(ySymbol, interval, range) {
   const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
     params: { interval, range, includePrePost: 'false' },
@@ -100,55 +109,74 @@ export async function getYahooMeta(symbol) {
   }
 }
 
-// 延遲即時報價（約 15–20 分）。來自 chart meta 的 regularMarket* 欄位。
-export async function getYahooQuote(stock) {
-  const ySymbol = yahooSymbol(stock)
+async function fetchQuoteFor(ySymbol) {
   const key = `yahoo:quote:${ySymbol}`
   const store = useStorage('data')
   const cached = await store.getItem(key)
   if (cached && Date.now() - cached.at < 60 * 1000) return cached.value
 
+  const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
+    params: { interval: '1d', range: '1d' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
+    timeout: 10000,
+    retry: 0
+  })
+  const r = res?.chart?.result?.[0]
+  const m = r?.meta
+  if (!m || m.regularMarketPrice == null) return cached?.value || null
+
+  const isTW = m.currency === 'TWD'
+  const price = round2(m.regularMarketPrice)
+  const previousClose = round2(m.chartPreviousClose ?? m.previousClose ?? price)
+  const open = round2(r.indicators?.quote?.[0]?.open?.[0] ?? m.regularMarketOpen ?? price)
+  const change = round2(price - previousClose)
+
+  const value = {
+    price,
+    previousClose,
+    open,
+    high: round2(m.regularMarketDayHigh ?? price),
+    low: round2(m.regularMarketDayLow ?? price),
+    change,
+    changePercent: previousClose ? round2((change / previousClose) * 100) : 0,
+    volume: Math.round((m.regularMarketVolume || 0) / (isTW ? 1000 : 1)),
+    marketTime: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now()
+  }
+  await store.setItem(key, { at: Date.now(), value })
+  return value
+}
+
+// 延遲即時報價（約 15–20 分）。來自 chart meta 的 regularMarket* 欄位。
+// 台股主要代號拿不到資料時，改試另一個上市/上櫃後綴（見 yahooAltSymbol）。
+export async function getYahooQuote(stock) {
   try {
-    const res = await $fetch(`${BASE}/${encodeURIComponent(ySymbol)}`, {
-      params: { interval: '1d', range: '1d' },
-      headers: { 'User-Agent': 'Mozilla/5.0 (StockPulse)' },
-      timeout: 10000,
-      retry: 0
-    })
-    const r = res?.chart?.result?.[0]
-    const m = r?.meta
-    if (!m || m.regularMarketPrice == null) return cached?.value || null
-
-    const isTW = m.currency === 'TWD'
-    const price = round2(m.regularMarketPrice)
-    const previousClose = round2(m.chartPreviousClose ?? m.previousClose ?? price)
-    const open = round2(r.indicators?.quote?.[0]?.open?.[0] ?? m.regularMarketOpen ?? price)
-    const change = round2(price - previousClose)
-
-    const value = {
-      price,
-      previousClose,
-      open,
-      high: round2(m.regularMarketDayHigh ?? price),
-      low: round2(m.regularMarketDayLow ?? price),
-      change,
-      changePercent: previousClose ? round2((change / previousClose) * 100) : 0,
-      volume: Math.round((m.regularMarketVolume || 0) / (isTW ? 1000 : 1)),
-      marketTime: m.regularMarketTime ? m.regularMarketTime * 1000 : Date.now()
-    }
-    await store.setItem(key, { at: Date.now(), value })
-    return value
+    const value = await fetchQuoteFor(yahooSymbol(stock))
+    if (value) return value
   } catch {
-    return cached?.value || null
+    // 落到備援代號
+  }
+  const alt = yahooAltSymbol(stock)
+  if (!alt) return null
+  try {
+    return await fetchQuoteFor(alt)
+  } catch {
+    return null
   }
 }
 
+async function withAltFallback(stock, fetchFn) {
+  const rows = await fetchFn(yahooSymbol(stock))
+  if (rows.length) return rows
+  const alt = yahooAltSymbol(stock)
+  return alt ? fetchFn(alt) : rows
+}
+
 export function getYahooHourly(stock) {
-  return getCached(yahooSymbol(stock), '60m', '3mo')
+  return withAltFallback(stock, (sym) => getCached(sym, '60m', '3mo'))
 }
 
 export function getYahooDaily(stock) {
-  return getCached(yahooSymbol(stock), '1d', '2y')
+  return withAltFallback(stock, (sym) => getCached(sym, '1d', '2y'))
 }
 
 // 指數等非個股：以 Yahoo 代號（如 ^TWII）直接取線圖
@@ -158,7 +186,10 @@ export function getYahooChartBySymbol(ySymbol, interval, range) {
 
 // 當日分時走勢（1 分 K）。回傳 { date, previousClose, points: [{ time, price, volume }] }
 export async function getYahooIntraday(stock) {
-  return getYahooIntradayBySymbol(yahooSymbol(stock))
+  const value = await getYahooIntradayBySymbol(yahooSymbol(stock))
+  if (value) return value
+  const alt = yahooAltSymbol(stock)
+  return alt ? getYahooIntradayBySymbol(alt) : value
 }
 
 export async function getYahooIntradayBySymbol(ySymbol) {
