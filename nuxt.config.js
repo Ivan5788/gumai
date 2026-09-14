@@ -32,6 +32,17 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
+    // 基本安全標頭（見資安檢視）。CSP 先不加——本站沒有外部 <script src>，
+    // 但 Nuxt hydration payload 需要 inline script，要另外設計 nonce/hash 才能安全收緊，
+    // 之後有時間再處理，先不要貿然加可能弄壞 hydration 的規則。
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+      }
+    },
     '/': { prerender: true },
     '/stock': { prerender: true },
     // 選股 / 訊號的結果會隨盤後指標快照變動，不預渲染；SSR + 短快取

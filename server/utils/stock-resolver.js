@@ -10,6 +10,12 @@ const FINMIND_ENABLED = process.env.NUXT_FINMIND_ENABLED !== 'false'
 const TW_CODE = /^[0-9]{4,6}[A-Z]?$/
 const US_CODE = /^[A-Z]{1,5}([.-][A-Z]{1,2})?$/
 
+// 查無資料的代號，短期記住「剛查過、沒有」，避免同一個（可能是亂打的）代號
+// 被重複觸發整串外部查詢（FinMind + 證交所 + 2 次 Yahoo）——見資安檢視。
+// 換來的代價：真正存在、但剛好遇到上游暫時性錯誤的代號，最多要等這段時間才會重試。
+const NEGATIVE_TTL = 15 * 60 * 1000
+const negativeMemo = new Map() // symbol -> expiresAt
+
 async function twPreviousClose(symbol, listing) {
   try {
     if (listing === 'TWSE' && TWSE_ENABLED) {
@@ -34,6 +40,29 @@ export async function resolveStock(symbol) {
   const mock = findMockStock(s)
   if (mock) return mock
 
+  const store = useStorage('data')
+  const negKey = `resolve:neg:${s}`
+  const memoUntil = negativeMemo.get(s)
+  if (memoUntil && Date.now() < memoUntil) return null
+  if (!memoUntil) {
+    const negCached = await store.getItem(negKey)
+    if (negCached && Date.now() - negCached.at < NEGATIVE_TTL) {
+      negativeMemo.set(s, negCached.at + NEGATIVE_TTL)
+      return null
+    }
+  }
+
+  const result = await resolveStockLive(s)
+  if (!result) {
+    negativeMemo.set(s, Date.now() + NEGATIVE_TTL)
+    await store.setItem(negKey, { at: Date.now() })
+  } else {
+    negativeMemo.delete(s)
+  }
+  return result
+}
+
+async function resolveStockLive(s) {
   // ── 台股（上市 / 上櫃）──
   if (TW_CODE.test(s)) {
     const info = FINMIND_ENABLED ? await getFinmindStockInfo(s) : null
