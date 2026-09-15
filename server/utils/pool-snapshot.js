@@ -7,6 +7,7 @@ import { POOL } from './stock-pool'
 import { resolveStock } from './stock-resolver'
 import { buildMockCandles } from './mock-history'
 import { getTwseDailyCandles, refreshTodayForAll } from './twse'
+import { mapLimit } from './concurrency'
 import { getYahooDaily } from './yahoo'
 import { getFinmindInstitutional } from './finmind'
 import {
@@ -121,8 +122,6 @@ function mockSnapshot() {
 }
 
 async function buildLive() {
-  const rows = []
-
   // 用 STOCK_DAY_ALL 一次請求，把股票池裡所有台股當月快取的最新一天補齊，
   // 取代逐檔打 STOCK_DAY（只影響「已存在」的當月快取，不會建立新月份）。
   try {
@@ -131,19 +130,23 @@ async function buildLive() {
     // 略過，退回逐檔抓取（candlesFor 仍會照常運作）
   }
 
-  for (const symbol of POOL) {
+  // 有限並行（見 concurrency.js）：上市股票仍受 twse.js 的全域節流佇列保護，
+  // 但等佇列輪到的空檔可以順便處理其他檔的 FinMind／Yahoo／集保查詢，
+  // 背景快照從 mock 換成真實資料的時間明顯縮短。
+  const results = await mapLimit(POOL, 6, async (symbol) => {
     try {
       const stock = await resolveStock(symbol)
-      if (!stock) continue
+      if (!stock) return null
       const candles = await candlesFor(stock)
       const institutional = await institutionalFor(stock)
       const holders = await holdersFor(stock)
-      rows.push(buildRow(stock, candles, institutional, holders))
+      return buildRow(stock, candles, institutional, holders)
     } catch {
-      // 略過此股
+      return null
     }
-  }
-  return { rows, source: 'live', builtAt: Date.now() }
+  })
+
+  return { rows: results.filter(Boolean), source: 'live', builtAt: Date.now() }
 }
 
 export function ensureFreshSnapshot() {

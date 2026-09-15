@@ -1,6 +1,7 @@
 <template>
   <div class="app-shell">
     <AppHeader />
+    <TestNotice />
     <main class="app-shell__main">
       <div class="app-shell__content">
         <slot />

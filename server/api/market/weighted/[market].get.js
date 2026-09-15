@@ -1,6 +1,7 @@
 // weightedListFor 來自 shared/utils/index-constituents.js（shared/utils 在 app 與 server 皆自動匯入，不需 import）
 import { resolveStock } from '../../../utils/stock-resolver'
 import { resolveQuote } from '../../../utils/stock-quote'
+import { mapLimit } from '../../../utils/concurrency'
 
 const TTL = 5 * 60 * 1000
 const cache = new Map() // market -> { at, data }
@@ -19,9 +20,10 @@ export default defineEventHandler(async (event) => {
     return cached.data
   }
 
-  const items = []
-  for (let i = 0; i < list.length; i += 1) {
-    const entry = list[i]
+  // 有限並行（見 concurrency.js）：台股 TWSE 部分仍受 twse.js 的全域節流佇列保護，
+  // 速度不會變快；但等佇列輪到的空檔可以順便處理其他檔的 FinMind/Yahoo 查詢，
+  // 上櫃股（完全不碰 TWSE）跟整體冷啟動時間明顯縮短。
+  const items = await mapLimit(list, 6, async (entry, i) => {
     const row = { rank: i + 1, symbol: entry.symbol, name: entry.name, industry: null, price: null, change: null, changePercent: null }
     try {
       const stock = await resolveStock(entry.symbol)
@@ -42,8 +44,8 @@ export default defineEventHandler(async (event) => {
     } catch {
       // 保留代號/名稱，報價留空
     }
-    items.push(row)
-  }
+    return row
+  })
 
   const data = {
     market,

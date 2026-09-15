@@ -54,6 +54,9 @@ export default defineNuxtConfig({
     '/market/**': { swr: 300 }
   },
   nitro: {
+    // 靜態資產（JS/CSS/預渲染 HTML）build 時預先壓縮成 .gz/.br，
+    // 讓支援的瀏覽器直接拿壓縮版，省下大半傳輸量（效能檢視）
+    compressPublicAssets: { gzip: true, brotli: true },
     prerender: {
       // 不爬連結（避免把清單頁連到的個股頁全部預渲染）；
       // 只預渲染靜態頁與少數熱門個股，其餘走 SWR
