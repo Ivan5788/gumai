@@ -7,6 +7,26 @@ function last(arr) {
   return arr[arr.length - 1]
 }
 
+// 回測均線：近 lookback 個交易日內（不含最新一日），收盤跌破該均線、或最低價
+// 逼近該均線（在均線之上 0.3% 以內），且目前（最新收盤）已經站回均線之上（含）。
+function retestMa(candles, period, lookback = 10) {
+  if (candles.length < period + 2) return false
+  const closes = candles.map((c) => c.close)
+  const lows = candles.map((c) => c.low)
+  const ma = sma(closes, period)
+  const n = candles.length
+
+  const nowMa = ma[n - 1]
+  if (nowMa == null || closes[n - 1] < nowMa) return false
+
+  const start = Math.max(period - 1, n - 1 - lookback)
+  for (let i = start; i < n - 1; i += 1) {
+    if (ma[i] == null) continue
+    if (closes[i] < ma[i] || lows[i] <= ma[i] * 1.003) return true
+  }
+  return false
+}
+
 export const RULE_TESTS = {
   above_ma20: ({ candles }) => {
     const closes = candles.map((c) => c.close)
@@ -19,6 +39,21 @@ export const RULE_TESTS = {
     const ma = sma(closes, 60)
     return last(ma) != null && last(closes) > last(ma)
   },
+
+  // 收盤價同時站上 5 / 10 / 20 日均線（短期多頭排列）
+  above_short_mas: ({ candles }) => {
+    const closes = candles.map((c) => c.close)
+    const ma5 = sma(closes, 5)
+    const ma10 = sma(closes, 10)
+    const ma20 = sma(closes, 20)
+    if (last(ma5) == null || last(ma10) == null || last(ma20) == null) return false
+    const c = last(closes)
+    return c > last(ma5) && c > last(ma10) && c > last(ma20)
+  },
+
+  // 回測：近期收盤跌破、或最低價逼近過該均線，且目前收盤已站回均線之上（含）
+  retest_ma10: ({ candles }) => retestMa(candles, 10),
+  retest_ma20: ({ candles }) => retestMa(candles, 20),
 
   ma_golden_cross: ({ candles }) => {
     const closes = candles.map((c) => c.close)

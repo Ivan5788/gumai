@@ -9,6 +9,9 @@ export const SCREENER_CATEGORIES = [
 export const SCREENER_RULES_META = [
   { id: 'above_ma20', category: 'tech', label: '站上月線', hint: '收盤價高於 20 日均線' },
   { id: 'above_ma60', category: 'tech', label: '站上季線', hint: '收盤價高於 60 日均線' },
+  { id: 'above_short_mas', category: 'tech', label: '站上三短期均線', hint: '收盤價同時站上 5、10、20 日均線' },
+  { id: 'retest_ma10', category: 'tech', label: '回測10日線站回', hint: '近期逼近或跌破 10 日均線後，收盤已站回 10 日均線之上' },
+  { id: 'retest_ma20', category: 'tech', label: '回測20日線站回', hint: '近期逼近或跌破 20 日均線後，收盤已站回 20 日均線之上' },
   { id: 'ma_golden_cross', category: 'tech', label: '均線黃金交叉', hint: '5 日均線近期上穿 20 日均線' },
   { id: 'break_20d_high', category: 'tech', label: '突破 20 日新高', hint: '收盤價創近 20 日新高' },
   { id: 'volume_surge', category: 'tech', label: '爆量', hint: '近 10 日成交量達 5 日均量 2 倍以上' },

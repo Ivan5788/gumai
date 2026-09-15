@@ -1,7 +1,9 @@
 <template>
   <div class="app-shell">
-    <AppHeader />
-    <TestNotice />
+    <div class="app-shell__pinned">
+      <TestNotice />
+      <AppHeader />
+    </div>
     <main class="app-shell__main">
       <div class="app-shell__content">
         <slot />
@@ -20,6 +22,12 @@
   display: flex;
   flex-direction: column;
   background: $color-bg;
+}
+
+.app-shell__pinned {
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .app-shell__main {

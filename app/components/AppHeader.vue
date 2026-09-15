@@ -63,9 +63,6 @@ const isActive = (item) => {
 
 <style lang="scss" scoped>
 .app-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
   border-bottom: 1px solid $color-border;
   background: rgba($color-bg, 0.92);
   backdrop-filter: blur(12px);
