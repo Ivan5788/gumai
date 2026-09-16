@@ -6,10 +6,12 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event)
   const market = q.market ? String(q.market).toUpperCase() : null
   const matchMode = q.match === 'any' ? 'any' : 'all'
+  // 大戶買賣力仍為示範資料，未開放時連帶隱藏該條件——即使直接帶參數呼叫也不會生效
+  const allowedIds = visibleScreenerRules(useRuntimeConfig().public.bigPowerEnabled).map((r) => r.id)
   const ruleIds = String(q.rules || '')
     .split(',')
     .map((s) => s.trim())
-    .filter((id) => SCREENER_RULE_IDS.includes(id))
+    .filter((id) => allowedIds.includes(id))
 
   const snap = await getPoolSnapshot()
   let rows = snap.rows

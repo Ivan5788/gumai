@@ -15,7 +15,7 @@
       <p class="lede">
         {{ stock.name }}（{{ stock.symbol }}）為{{ marketLabel }}{{ stock.industry }}標的。
         本頁提供{{ stock.name }}的即時股價、漲跌、成交量、歷史走勢，以及當日走勢、60 分 K、日 K、週 K 與均線，
-        並含三大法人買賣超、大戶與散戶持股變化與大戶買賣力。
+        並含三大法人買賣超、大戶與散戶持股變化<span v-if="bigPowerEnabled">與大戶買賣力</span>。
       </p>
     </header>
 
@@ -105,7 +105,7 @@
       </ClientOnly>
     </section>
 
-    <section aria-labelledby="stock-bigpower">
+    <section v-if="bigPowerEnabled" aria-labelledby="stock-bigpower">
       <h2 id="stock-bigpower">大戶買賣力</h2>
       <p class="section-hint">
         依（特大單＋大單）×（外盤－內盤）估算的大戶買賣力道，可切日／週／60 分。
@@ -132,6 +132,9 @@
 </template>
 
 <script setup>
+// 大戶買賣力仍為示範資料（需付費逐筆成交/內外盤資料），未開放時隱藏整個區塊
+const bigPowerEnabled = useRuntimeConfig().public.bigPowerEnabled
+
 const route = useRoute()
 
 const symbol = computed(() => normalizeSymbol(route.params.symbol))

@@ -5,7 +5,7 @@
       <h1>個股分析</h1>
       <p class="lede">
         每檔個股頁提供即時報價、當日走勢、60 分 K、日 K、週 K 與 MA 均線，
-        以及三大法人買賣超、大戶與散戶持股變化、大戶買賣力。個股網址為 <code>/stock/代號</code>，
+        以及三大法人買賣超、大戶與散戶持股變化<span v-if="bigPowerEnabled">、大戶買賣力</span>。個股網址為 <code>/stock/代號</code>，
         例如 <NuxtLink to="/stock/2330">台積電（2330）</NuxtLink>、
         <NuxtLink to="/stock/NVDA">輝達（NVDA）</NuxtLink>。
       </p>
@@ -38,9 +38,13 @@
 </template>
 
 <script setup>
+// 大戶買賣力仍為示範資料（需付費逐筆成交/內外盤資料），未開放時隱藏文案與區塊
+const bigPowerEnabled = useRuntimeConfig().public.bigPowerEnabled
+
 const title = '個股分析｜台股與美股股價、K 線與籌碼 | 股脈'
-const description =
-  '股脈 個股分析：即時報價、當日走勢、日 K／週 K／60 分 K、均線、三大法人買賣超、大戶與散戶持股變化與大戶買賣力。'
+const description = bigPowerEnabled
+  ? '股脈 個股分析：即時報價、當日走勢、日 K／週 K／60 分 K、均線、三大法人買賣超、大戶與散戶持股變化與大戶買賣力。'
+  : '股脈 個股分析：即時報價、當日走勢、日 K／週 K／60 分 K、均線、三大法人買賣超、大戶與散戶持股變化。'
 
 const { data: stockData } = await useApiFetch('/stocks', { key: 'stock-index-list' })
 const items = computed(() => stockData.value?.items ?? [])

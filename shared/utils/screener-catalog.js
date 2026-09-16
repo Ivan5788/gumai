@@ -20,11 +20,18 @@ export const SCREENER_RULES_META = [
   { id: 'foreign_buy_streak', category: 'chips', label: '外資連買', hint: '外資連續 3 日買超' },
   { id: 'trust_buy', category: 'chips', label: '投信買超', hint: '投信最近一日買超' },
   { id: 'retail_holder_down', category: 'chips', label: '散戶持股減少', hint: '散戶（≤100 張）持股較約一個月前減少，籌碼趨於集中' },
-  { id: 'big_power_turn_positive', category: 'chips', label: '大戶買賣力翻正', hint: '大戶買賣力由負轉正' }
+  // paidApi：需要付費逐筆成交/內外盤資料才有真實版本，目前純示範。
+  // NUXT_PUBLIC_BIGPOWER_ENABLED=false 時隱藏（見 nuxt.config.js），接上真實資料源後拿掉這個標記即可。
+  { id: 'big_power_turn_positive', category: 'chips', label: '大戶買賣力翻正', hint: '大戶買賣力由負轉正', paidApi: true }
 ]
 
 export const SCREENER_RULE_IDS = SCREENER_RULES_META.map((r) => r.id)
 
 export function screenerRuleLabel(id) {
   return SCREENER_RULES_META.find((r) => r.id === id)?.label ?? id
+}
+
+// 依 bigPowerEnabled 篩掉需要付費資料源的條件（前端渲染清單、後端驗證請求參數皆用這個）
+export function visibleScreenerRules(bigPowerEnabled) {
+  return bigPowerEnabled ? SCREENER_RULES_META : SCREENER_RULES_META.filter((r) => !r.paidApi)
 }

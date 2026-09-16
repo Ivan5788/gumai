@@ -15,15 +15,15 @@
       <h2 id="overview-features" class="visually-hidden">平台功能</h2>
       <NuxtLink to="/stock/2330" class="panel">
         <h3>個股分析</h3>
-        <p>即時報價、當日走勢、60 分 K、日 K、週 K 與 MA 均線；三大法人買賣超、大戶／散戶持股變化、大戶買賣力。</p>
+        <p>即時報價、當日走勢、60 分 K、日 K、週 K 與 MA 均線；三大法人買賣超、大戶／散戶持股變化<span v-if="bigPowerEnabled">、大戶買賣力</span>。</p>
       </NuxtLink>
       <NuxtLink to="/screener" class="panel">
         <h3>選股系統</h3>
-        <p>依站上均線、黃金交叉、突破新高、爆量、跳空、外資連買、大戶買賣力翻正等技術面與籌碼面條件篩選。</p>
+        <p>依站上均線、回測均線、黃金交叉、突破新高、爆量、跳空、外資連買<span v-if="bigPowerEnabled">、大戶買賣力翻正</span>等技術面與籌碼面條件篩選。</p>
       </NuxtLink>
       <NuxtLink to="/signals" class="panel">
         <h3>關鍵訊號搜尋</h3>
-        <p>掃描近期剛發生的訊號，如站上季線、黃金交叉、創新高、帶量上漲、外資翻多、大戶買賣力翻紅。</p>
+        <p>掃描近期剛發生的訊號，如站上季線、黃金交叉、創新高、帶量上漲、外資翻多<span v-if="bigPowerEnabled">、大戶買賣力翻紅</span>。</p>
       </NuxtLink>
     </section>
 
@@ -51,6 +51,9 @@
 </template>
 
 <script setup>
+// 大戶買賣力仍為示範資料（需付費逐筆成交/內外盤資料），未開放時隱藏文案
+const bigPowerEnabled = useRuntimeConfig().public.bigPowerEnabled
+
 const title = '股脈｜台股與美股即時看盤與選股平台'
 const description =
   '股脈 是台股與美股即時看盤、技術分析與選股平台，提供即時報價、日 K／週 K／60 分 K、均線、三大法人、大戶籌碼、選股與關鍵訊號搜尋。'

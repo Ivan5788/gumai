@@ -12,5 +12,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: `找不到股票代號 ${symbol}` })
   }
 
+  if (!useRuntimeConfig().public.bigPowerEnabled) {
+    return {
+      symbol: stock.symbol,
+      market: stock.market,
+      available: false,
+      reason: '大戶買賣力功能尚未開放，需要付費逐筆成交與內外盤資料，目前僅為示範資料而暫時隱藏。',
+      isMock: true
+    }
+  }
+
   return buildMockBigPower(stock, { interval })
 })

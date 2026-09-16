@@ -4,8 +4,8 @@
       <p class="eyebrow">Stock Screener</p>
       <h1>股票選股系統</h1>
       <p class="lede">
-        設定技術面與籌碼面條件，篩選台股與美股。技術面包含站上月線／季線、均線黃金交叉、突破 20 日新高、爆量、跳空上漲、連 3 日上漲；
-        籌碼面包含外資連買、投信買超、大戶持股增加、大戶買賣力翻正。
+        設定技術面與籌碼面條件，篩選台股與美股。技術面包含站上月線／季線、站上短期均線、回測均線站回、均線黃金交叉、突破 20 日新高、爆量、跳空上漲、連 3 日上漲；
+        籌碼面包含外資連買、投信買超、散戶持股減少<span v-if="bigPowerEnabled">、大戶買賣力翻正</span>。
       </p>
     </header>
 
@@ -111,6 +111,9 @@
 </template>
 
 <script setup>
+// 大戶買賣力仍為示範資料（需付費逐筆成交/內外盤資料），未開放時整個功能面隱藏——見 shared/utils/screener-catalog.js
+const bigPowerEnabled = useRuntimeConfig().public.bigPowerEnabled
+
 const market = ref('ALL')
 const matchMode = ref('all')
 const selectedRules = ref([])
@@ -126,9 +129,10 @@ const matchOptions = [
 ]
 
 const rulesByCategory = computed(() => {
+  const rules = visibleScreenerRules(bigPowerEnabled)
   const map = {}
   for (const cat of SCREENER_CATEGORIES) {
-    map[cat.id] = SCREENER_RULES_META.filter((r) => r.category === cat.id)
+    map[cat.id] = rules.filter((r) => r.category === cat.id)
   }
   return map
 })
@@ -155,7 +159,8 @@ const pending = computed(() => status.value === 'pending' && !data.value)
 
 const poolNote = computed(() => {
   if (data.value?.source === 'live') {
-    return `股票池為 ${data.value.poolSize} 檔台股權值股與熱門美股，技術面／籌碼面指標於盤後更新（大戶持股與買賣力仍為示範）。`
+    const mockHint = bigPowerEnabled ? '（大戶買賣力仍為示範）' : ''
+    return `股票池為 ${data.value.poolSize} 檔台股權值股與熱門美股，技術面／籌碼面指標於盤後更新${mockHint}。`
   }
   return '指標快照建立中，暫時顯示示範資料，稍後重新整理即為實際資料。'
 })
@@ -167,7 +172,7 @@ function trendClass(change) {
 
 const title = '股票選股系統｜技術面與籌碼面選股 | 股脈'
 const description =
-  '股脈 選股系統，依站上均線、黃金交叉、突破新高、爆量、跳空、外資連買、投信買超、大戶買賣力等條件篩選台股與美股。'
+  '股脈 選股系統，依站上均線、回測均線、黃金交叉、突破新高、爆量、跳空、外資連買、投信買超、散戶持股減少等條件篩選台股與美股。'
 const { url, siteUrl } = usePageSeo({ title, description, path: '/screener' })
 useWebPageJsonLd({
   name: title,

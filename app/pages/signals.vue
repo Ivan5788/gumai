@@ -4,7 +4,7 @@
       <p class="eyebrow">Signal Scanner</p>
       <h1>關鍵訊號搜尋</h1>
       <p class="lede">
-        掃描台股與美股近期「剛發生」的技術面與籌碼面訊號，例如站上季線、黃金交叉、創新高、帶量上漲、跳空、外資翻多、大戶買賣力翻紅等。
+        掃描台股與美股近期「剛發生」的技術面與籌碼面訊號，例如站上季線、站上短期均線、回測均線站回、黃金交叉、創新高、帶量上漲、跳空、外資翻多<span v-if="bigPowerEnabled">、大戶買賣力翻紅</span>等。
         可用股票代號、名稱或訊號關鍵字搜尋。
       </p>
     </header>
@@ -57,7 +57,7 @@
 
         <div class="signals__chips">
           <button
-            v-for="sig in SIGNAL_META"
+            v-for="sig in visibleSignalMeta"
             :key="sig.id"
             type="button"
             class="chip"
@@ -116,6 +116,10 @@
 </template>
 
 <script setup>
+// 大戶買賣力仍為示範資料（需付費逐筆成交/內外盤資料），未開放時整個功能面隱藏——見 shared/utils/signal-catalog.js
+const bigPowerEnabled = useRuntimeConfig().public.bigPowerEnabled
+const visibleSignalMeta = visibleSignals(bigPowerEnabled)
+
 const qInput = ref('')
 const q = ref('')
 const days = ref(10)
@@ -172,14 +176,15 @@ const pending = computed(() => status.value === 'pending' && !data.value)
 
 const poolNote = computed(() => {
   if (data.value?.source === 'live') {
-    return `掃描 ${data.value.poolSize} 檔台股權值股與熱門美股，於盤後更新（大戶買賣力訊號仍為示範）。`
+    const mockHint = bigPowerEnabled ? '（大戶買賣力訊號仍為示範）' : ''
+    return `掃描 ${data.value.poolSize} 檔台股權值股與熱門美股，於盤後更新${mockHint}。`
   }
   return '指標快照建立中，暫時顯示示範資料，稍後重新整理即為實際資料。'
 })
 
 const title = '關鍵訊號搜尋｜黃金交叉、突破、外資翻多 | 股脈'
 const description =
-  '股脈 關鍵訊號搜尋，掃描台股與美股近期站上均線、黃金交叉、創新高、帶量上漲、跳空、外資翻多與大戶買賣力訊號。'
+  '股脈 關鍵訊號搜尋，掃描台股與美股近期站上均線、回測均線站回、黃金交叉、創新高、帶量上漲、跳空與外資翻多訊號。'
 const { url, siteUrl } = usePageSeo({ title, description, path: '/signals' })
 useWebPageJsonLd({
   name: title,

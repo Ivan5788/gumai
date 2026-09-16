@@ -8,10 +8,12 @@ export default defineEventHandler(async (event) => {
   const market = query.market ? String(query.market).toUpperCase() : null
   const direction = query.direction === 'bullish' || query.direction === 'bearish' ? query.direction : null
   const days = Math.min(Math.max(Number(query.days) || 10, 1), 60)
+  // 大戶買賣力仍為示範資料，未開放時連帶隱藏該類型——即使直接帶參數呼叫也不會生效
+  const allowedIds = visibleSignals(useRuntimeConfig().public.bigPowerEnabled).map((s) => s.id)
   const types = String(query.types || '')
     .split(',')
     .map((s) => s.trim())
-    .filter((id) => SIGNAL_IDS.includes(id))
+    .filter((id) => allowedIds.includes(id))
 
   const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
   const snap = await getPoolSnapshot()
@@ -35,6 +37,9 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // 未開放的類型（大戶買賣力）永遠濾掉，不只是「有指定 types 時」才濾——
+  // 不然預設（不指定 types）的全部訊號清單還是會漏出來
+  events = events.filter((e) => allowedIds.includes(e.signalId))
   if (types.length) events = events.filter((e) => types.includes(e.signalId))
   if (direction) events = events.filter((e) => e.direction === direction)
   if (q) {

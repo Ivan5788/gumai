@@ -28,7 +28,11 @@ export default defineNuxtConfig({
       siteDescription:
         '股脈 是台股與美股即時看盤、技術分析與選股平台，提供即時報價、K 線圖、均線、三大法人與選股工具。',
       // 瀏覽器端呼叫後端用；預設走 Nuxt 同源路徑 /api（未來由 Nitro 代理到後端，避免 CORS 並隱藏內網位址）
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api',
+      // 大戶買賣力目前是純示範資料（需要付費逐筆成交/內外盤資料才有真實版本，見資料源檢視），
+      // 先隱藏整個功能面（個股頁區塊、選股條件、訊號類型），接上真實資料源後把這個 env 設 true 即可開放，
+      // 不用改任何程式碼。預設關閉（跟其他 *_ENABLED 預設開啟相反，是刻意的）。
+      bigPowerEnabled: process.env.NUXT_PUBLIC_BIGPOWER_ENABLED === 'true'
     }
   },
   routeRules: {

@@ -17,8 +17,10 @@ export const SIGNAL_META = [
   { id: 'gap_down', direction: 'bearish', label: '跳空下跌', hint: '開盤跳空低於前日最低且收黑', keywords: ['跳空', '跳空下跌'] },
   { id: 'foreign_turn_buy', direction: 'bullish', label: '外資翻多', hint: '外資買賣超由負轉正', keywords: ['外資', '三大法人', '翻多'] },
   { id: 'foreign_turn_sell', direction: 'bearish', label: '外資翻空', hint: '外資買賣超由正轉負', keywords: ['外資', '三大法人', '翻空'] },
-  { id: 'big_power_positive', direction: 'bullish', label: '大戶買賣力翻紅', hint: '大戶買賣力由負轉正', keywords: ['大戶', '買賣力', '主力'] },
-  { id: 'big_power_negative', direction: 'bearish', label: '大戶買賣力翻綠', hint: '大戶買賣力由正轉負', keywords: ['大戶', '買賣力', '主力'] }
+  // paidApi：需要付費逐筆成交/內外盤資料才有真實版本，目前純示範。
+  // NUXT_PUBLIC_BIGPOWER_ENABLED=false 時隱藏（見 nuxt.config.js），接上真實資料源後拿掉這個標記即可。
+  { id: 'big_power_positive', direction: 'bullish', label: '大戶買賣力翻紅', hint: '大戶買賣力由負轉正', keywords: ['大戶', '買賣力', '主力'], paidApi: true },
+  { id: 'big_power_negative', direction: 'bearish', label: '大戶買賣力翻綠', hint: '大戶買賣力由正轉負', keywords: ['大戶', '買賣力', '主力'], paidApi: true }
 ]
 
 export const SIGNAL_IDS = SIGNAL_META.map((s) => s.id)
@@ -29,4 +31,9 @@ export function signalMeta(id) {
 
 export function signalLabel(id) {
   return signalMeta(id)?.label ?? id
+}
+
+// 依 bigPowerEnabled 篩掉需要付費資料源的訊號（前端渲染清單、後端驗證請求參數皆用這個）
+export function visibleSignals(bigPowerEnabled) {
+  return bigPowerEnabled ? SIGNAL_META : SIGNAL_META.filter((s) => !s.paidApi)
 }
