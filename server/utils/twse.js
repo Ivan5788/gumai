@@ -9,12 +9,59 @@ const STOCK_DAY_ALL = 'https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL
 const CACHE_TTL_CURRENT = 30 * 60 * 1000 // 當月資料 30 分鐘
 const ALL_TTL = 20 * 60 * 1000
 
-// 全域節流：串起所有對 TWSE 的請求，彼此間隔 ~1.2s
-let queue = Promise.resolve()
-function throttle(task) {
-  const run = queue.then(task)
-  queue = run.catch(() => {}).then(() => new Promise((r) => setTimeout(r, 1200)))
-  return run
+// 全域節流：串起所有對 TWSE 的請求，彼此間隔 ~1.2s。
+// 分兩個優先權：使用者正在等的請求（high）永遠排在背景預熱（low：股票池快照、
+// 走勢圖更早月份補齊）之前。單一 FIFO 佇列時，點開個股要排在幾十個背景請求後面，
+// 走勢圖會轉圈數十秒甚至更久。
+// 同一個 key（同檔同月）已在排隊或執行中時共用同一個 promise；若新請求是 high、
+// 舊的還在 low 佇列等，就把它提升到 high。
+const GAP_MS = 1200
+const queues = { high: [], low: [] }
+const pendingByKey = new Map() // key -> job
+let pumping = false
+
+function throttle(task, { priority = 'high', key = null } = {}) {
+  const level = priority === 'low' ? 'low' : 'high'
+
+  if (key && pendingByKey.has(key)) {
+    const job = pendingByKey.get(key)
+    if (level === 'high' && job.level === 'low') {
+      const idx = queues.low.indexOf(job)
+      if (idx !== -1) {
+        queues.low.splice(idx, 1)
+        job.level = 'high'
+        queues.high.push(job)
+      }
+    }
+    return job.promise
+  }
+
+  const job = { task, level, key }
+  job.promise = new Promise((resolve, reject) => {
+    job.resolve = resolve
+    job.reject = reject
+  })
+  if (key) pendingByKey.set(key, job)
+  queues[level].push(job)
+  pump()
+  return job.promise
+}
+
+async function pump() {
+  if (pumping) return
+  pumping = true
+  while (queues.high.length || queues.low.length) {
+    const job = queues.high.shift() || queues.low.shift()
+    try {
+      job.resolve(await job.task())
+    } catch (err) {
+      job.reject(err)
+    } finally {
+      if (job.key) pendingByKey.delete(job.key)
+    }
+    await new Promise((r) => setTimeout(r, GAP_MS))
+  }
+  pumping = false
 }
 
 function rocToIso(roc) {
@@ -75,10 +122,14 @@ async function fetchMonthRaw(stockNo, year, month) {
   return { rows, name }
 }
 
-async function getMonth(stockNo, year, month) {
+function monthKey(stockNo, year, month) {
+  return `twse:day:${stockNo}:${year}-${String(month).padStart(2, '0')}`
+}
+
+async function getMonth(stockNo, year, month, priority = 'high') {
   const now = new Date()
   const isCurrent = year === now.getFullYear() && month === now.getMonth() + 1
-  const key = `twse:day:${stockNo}:${year}-${String(month).padStart(2, '0')}`
+  const key = monthKey(stockNo, year, month)
   const store = useStorage('data')
 
   const cached = await store.getItem(key)
@@ -87,7 +138,7 @@ async function getMonth(stockNo, year, month) {
   }
 
   try {
-    const { rows, name } = await throttle(() => fetchMonthRaw(stockNo, year, month))
+    const { rows, name } = await throttle(() => fetchMonthRaw(stockNo, year, month), { priority, key })
     if (name) await store.setItem(`twse:name:${stockNo}`, name)
     // 過往月份即使空的也快取（該股當時未上市）；當月為空則不覆蓋既有快取
     if (rows.length || !isCurrent) {
@@ -107,13 +158,16 @@ async function getMonth(stockNo, year, month) {
 let allMemo = null
 
 async function fetchStockDayAllRaw() {
-  const text = await throttle(() =>
-    $fetch(STOCK_DAY_ALL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
-      timeout: 15000,
-      retry: 0,
-      responseType: 'text'
-    })
+  // 只有背景的股票池快照會用到，排低優先權
+  const text = await throttle(
+    () =>
+      $fetch(STOCK_DAY_ALL, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (GuMai)' },
+        timeout: 15000,
+        retry: 0,
+        responseType: 'text'
+      }),
+    { priority: 'low', key: 'twse:day-all' }
   )
 
   const lines = String(text)
@@ -202,22 +256,39 @@ export async function getTwseStockName(stockNo) {
 
 // 只讀該月快取，不發請求（用於背景漸進式補齊）
 async function readCachedMonth(stockNo, year, month) {
-  const key = `twse:day:${stockNo}:${year}-${String(month).padStart(2, '0')}`
-  const cached = await useStorage('data').getItem(key)
+  const cached = await useStorage('data').getItem(monthKey(stockNo, year, month))
   return cached?.rows || null
+}
+
+// 最近 monthsBack 個月（不含當月）是否都已快取。
+// 是 → getTwseDailyCandles 頂多再打 1 次（當月）；否 → 同步抓取會逐月排隊，首次載入很慢。
+// 當月不列入判斷：月初尚無成交資料時當月不會被快取，不能因此永遠判定為「未快取」。
+export async function hasCachedTwseMonths(stockNo, monthsBack) {
+  const now = new Date()
+  const store = useStorage('data')
+  for (let i = 1; i < monthsBack; i += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    if (!(await store.hasItem(monthKey(stockNo, d.getFullYear(), d.getMonth() + 1)))) return false
+  }
+  return true
 }
 
 // 取得日 K，已排序去重。
 //   monthsBack：同步抓取（await）的最近月份數
 //   backgroundMonths：更早的月份 —— 已快取者併入本次結果，未快取者丟背景抓（不 await，
 //     只為填快取，下次載入即完整）。避免冷門股首次載入等待整段區間。
-export async function getTwseDailyCandles(stockNo, monthsBack = 8, { backgroundMonths = 0 } = {}) {
+//   priority：同步月份在證交所節流佇列的優先權；背景月份一律 low。
+export async function getTwseDailyCandles(
+  stockNo,
+  monthsBack = 8,
+  { backgroundMonths = 0, priority = 'high' } = {}
+) {
   const now = new Date()
   const out = new Map()
 
   for (let i = monthsBack - 1; i >= 0; i -= 1) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const rows = await getMonth(stockNo, d.getFullYear(), d.getMonth() + 1)
+    const rows = await getMonth(stockNo, d.getFullYear(), d.getMonth() + 1, priority)
     for (const r of rows) out.set(r.time, r)
   }
 
@@ -230,7 +301,7 @@ export async function getTwseDailyCandles(stockNo, monthsBack = 8, { backgroundM
       for (const r of cached) out.set(r.time, r)
     } else {
       // fire-and-forget：排入證交所節流佇列，填入快取供下次使用
-      void getMonth(stockNo, y, m).catch(() => {})
+      void getMonth(stockNo, y, m, 'low').catch(() => {})
     }
   }
 

@@ -71,7 +71,8 @@ async function candlesFor(stock) {
   try {
     if (stock.listing === 'TWSE') {
       // 選股/訊號只需 MA60 + 回看窗，6 個月足夠；不隨走勢圖擴大到 2 年
-      const c = await getTwseDailyCandles(stock.symbol, 6)
+      // 背景快照：排低優先權，不擋使用者正在等的請求
+      const c = await getTwseDailyCandles(stock.symbol, 6, { priority: 'low' })
       if (c.length >= 60) return c
     } else if (stock.market === 'US') {
       const c = await getYahooDaily(stock)

@@ -1,6 +1,6 @@
 import { resolveStock } from '../../../utils/stock-resolver'
 import { buildMockCandles } from '../../../utils/mock-history'
-import { getTwseDailyCandles, aggregateWeeklyCandles } from '../../../utils/twse'
+import { getTwseDailyCandles, aggregateWeeklyCandles, hasCachedTwseMonths } from '../../../utils/twse'
 import { getYahooHourly, getYahooDaily } from '../../../utils/yahoo'
 
 const INTERVALS = ['1d', '1wk', '60m']
@@ -51,9 +51,25 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const fromYahooDaily = async () => {
+    try {
+      const daily = await getYahooDaily(stock)
+      return ok(iv === '1wk' ? aggregateWeeklyCandles(daily) : daily, 'yahoo')
+    } catch {
+      return null
+    }
+  }
+
   // 台股上市日/週 K → 證交所
   // 同步抓最近 12 個月，更早 12 個月背景補齊（下次載入即完整 ~2 年）
   if ((iv === '1d' || iv === '1wk') && TWSE_ENABLED && stock.listing === 'TWSE') {
+    // 首次查詢（近 12 個月未快取）：證交所得逐月排隊（每次間隔 1.2s），走勢圖會轉圈十幾秒以上。
+    // 改先回 Yahoo（約 2 年日 K，一次請求），同時以低優先權在背景補齊證交所快取，下次載入即改用證交所。
+    if (YAHOO_ENABLED && !(await hasCachedTwseMonths(stock.symbol, 12))) {
+      void getTwseDailyCandles(stock.symbol, 12, { backgroundMonths: 12, priority: 'low' }).catch(() => {})
+      const res = await fromYahooDaily()
+      if (res) return res
+    }
     try {
       const daily = await getTwseDailyCandles(stock.symbol, 12, { backgroundMonths: 12 })
       const candles = iv === '1wk' ? aggregateWeeklyCandles(daily) : daily
@@ -66,14 +82,8 @@ export default defineEventHandler(async (event) => {
 
   // 美股 / 台股上櫃 日/週 K → Yahoo
   if ((iv === '1d' || iv === '1wk') && YAHOO_ENABLED && (stock.market === 'US' || stock.listing === 'TPEx')) {
-    try {
-      const daily = await getYahooDaily(stock)
-      const candles = iv === '1wk' ? aggregateWeeklyCandles(daily) : daily
-      const res = ok(candles, 'yahoo')
-      if (res) return res
-    } catch {
-      // 落回
-    }
+    const res = await fromYahooDaily()
+    if (res) return res
   }
 
   return fallback()
