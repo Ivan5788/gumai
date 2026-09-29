@@ -67,6 +67,8 @@ export default defineEventHandler(async (event) => {
     count: events.length,
     poolSize: snap.rows.length,
     source: snap.source,
+    builtAt: snap.builtAt ? new Date(snap.builtAt).toISOString() : null,
+    intraday: Boolean(snap.intraday),
     events: events.slice(0, 300)
   }
 })
