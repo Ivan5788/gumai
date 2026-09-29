@@ -1,20 +1,24 @@
 // 台股大盤指數：加權指數（TAIEX）與櫃買指數（TPEx）。
 //
-// 皆為官方免費、盤後（T+0 收盤後）資料：
+// 優先用證交所「盤中即時資訊」MIS（官方免費，約 5 秒延遲，盤中可用）；
+// 失敗或非盤中無資料時，落回既有的官方盤後資料：
 //  - 加權指數：證交所「發行量加權股價指數歷史資料」MI_5MINS_HIST（當月每日 OHLC）
 //  - 櫃買指數：櫃買中心 openapi tpex_index（當月每日 OHLC + 漲跌）
+// 加權指數再失敗則最後落回 Yahoo（^TWII 日線）。
 //
-// 盤中即時指數需 mis.twse.com.tw（本環境不穩，且非官方 opendata），暫不接。
+// MIS 過去在本環境測過不穩定（曾連線失敗），所以永遠當「優先嘗試」而非唯一來源。
 
 import { aggregateWeeklyCandles } from './twse'
 import {
   getFinmindIndexCandles
 } from './finmind'
 import { getYahooChartBySymbol, getYahooIntradayBySymbol } from './yahoo'
+import { getMisQuote } from './twse-mis'
 
 const TAIEX_URL = 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST?response=json'
 const TPEX_URL = 'https://www.tpex.org.tw/openapi/v1/tpex_index'
-const TTL = 10 * 60 * 1000
+// MIS 是盤中即時來源，外層快取不能太長，否則體感上跟舊的盤後資料沒兩樣。
+const TTL = 20 * 1000
 const UA = 'Mozilla/5.0 (GuMai)'
 
 const FINMIND_ENABLED = process.env.NUXT_FINMIND_ENABLED !== 'false'
@@ -53,7 +57,7 @@ function toIso(raw) {
   return null
 }
 
-function pack({ code, name, market, close, prevClose, open, high, low, date, source }) {
+function pack({ code, name, market, close, prevClose, open, high, low, date, time, source }) {
   const change = round2(close - prevClose)
   return {
     code,
@@ -67,8 +71,45 @@ function pack({ code, name, market, close, prevClose, open, high, low, date, sou
     high: high != null ? round2(high) : null,
     low: low != null ? round2(low) : null,
     date,
+    time: time || null,
     source
   }
+}
+
+async function fetchTaiexFromMis() {
+  const row = await getMisQuote('tse_t00.tw')
+  if (!row) return null
+  return pack({
+    code: 'TAIEX',
+    name: '加權指數',
+    market: '上市',
+    close: row.price,
+    prevClose: row.previousClose,
+    open: row.open,
+    high: row.high,
+    low: row.low,
+    date: row.date ? toIso(row.date) : null,
+    time: row.time,
+    source: 'mis'
+  })
+}
+
+async function fetchTpexFromMis() {
+  const row = await getMisQuote('otc_o00.tw')
+  if (!row) return null
+  return pack({
+    code: 'TPEX',
+    name: '櫃買指數',
+    market: '上櫃',
+    close: row.price,
+    prevClose: row.previousClose,
+    open: row.open,
+    high: row.high,
+    low: row.low,
+    date: row.date ? toIso(row.date) : null,
+    time: row.time,
+    source: 'mis'
+  })
 }
 
 async function fetchTaiexFromTwse() {
@@ -122,6 +163,12 @@ async function fetchTaiexFromYahoo() {
 
 async function fetchTaiex() {
   try {
+    const r = await fetchTaiexFromMis()
+    if (r) return r
+  } catch {
+    // 落到證交所盤後資料
+  }
+  try {
     const r = await fetchTaiexFromTwse()
     if (r) return r
   } catch {
@@ -132,6 +179,16 @@ async function fetchTaiex() {
 }
 
 async function fetchTpex() {
+  try {
+    const r = await fetchTpexFromMis()
+    if (r) return r
+  } catch {
+    // 落到櫃買中心盤後資料
+  }
+  return fetchTpexFromOpenapi()
+}
+
+async function fetchTpexFromOpenapi() {
   const rows = await $fetch(TPEX_URL, {
     headers: { 'User-Agent': UA, Referer: 'https://www.tpex.org.tw/' },
     timeout: 12000,

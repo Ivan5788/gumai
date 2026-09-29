@@ -1,6 +1,9 @@
 import { resolveStock } from '../../utils/stock-resolver'
 import { resolveQuote } from '../../utils/stock-quote'
 
+// 真實資料來源（非示範）：mis（盤中即時）、yahoo（延遲即時）、twse（實際昨收 + 模擬盤中）
+const REAL_SOURCES = ['mis', 'yahoo', 'twse']
+
 // GET /api/stocks/:symbol
 // 基本資訊 + 一組報價快照。台股上市股票的昨收取自證交所實際收盤。
 export default defineEventHandler(async (event) => {
@@ -23,6 +26,6 @@ export default defineEventHandler(async (event) => {
     previousClose,
     previousCloseSource,
     quote,
-    isMock: previousCloseSource !== 'twse'
+    isMock: !REAL_SOURCES.includes(previousCloseSource)
   }
 })

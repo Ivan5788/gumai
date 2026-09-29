@@ -23,7 +23,7 @@
       </dl>
     </NuxtLink>
     <p class="index-bar__note">
-      <span v-if="dateLabel">資料日期 {{ dateLabel }}（收盤）</span>
+      <span v-if="dateLabel">資料日期 {{ dateLabel }}{{ isLive ? '（盤中即時，約 5 秒延遲）' : '（收盤）' }}</span>
       <span>資料來源：證交所、櫃買中心</span>
     </p>
   </section>
@@ -53,6 +53,7 @@ onBeforeUnmount(() => timer && clearInterval(timer))
 
 const current = computed(() => live.value ?? data.value ?? {})
 const indices = computed(() => current.value.indices ?? [])
+const isLive = computed(() => indices.value.some((i) => i.source === 'mis'))
 const dateLabel = computed(() => {
   const d = indices.value[0]?.date
   if (!d) return ''

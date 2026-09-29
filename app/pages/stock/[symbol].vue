@@ -160,11 +160,15 @@ const {
 // 顯示用報價：優先即時值，其次伺服器初次回傳的快照
 const quote = computed(() => liveQuote.value ?? stock.value.quote ?? {})
 const trend = computed(() => trendOf(quote.value.change))
-const quoteDisclaimer = computed(() =>
-  quote.value.source === 'yahoo-delayed'
-    ? '行情為延遲報價（約 15–20 分鐘），資料來源 Yahoo Finance；盤中即時推播（券商 API）將於後續接入。'
-    : '行情為示範資料（以實際昨收為基準的模擬盤中）；正式行情來源將於後續接入。'
-)
+const quoteDisclaimer = computed(() => {
+  if (quote.value.source === 'twse-mis') {
+    return '行情為證交所盤中即時資訊，約 5 秒延遲；正式交易決策請以官方公告為準。'
+  }
+  if (quote.value.source === 'yahoo-delayed') {
+    return '行情為延遲報價（約 15–20 分鐘），資料來源 Yahoo Finance。'
+  }
+  return '行情為示範資料（以實際昨收為基準的模擬盤中）；正式行情來源將於後續接入。'
+})
 const quoteTime = computed(() =>
   quoteUpdatedAt.value
     ? quoteUpdatedAt.value.toLocaleTimeString('zh-TW', { hour12: false })
