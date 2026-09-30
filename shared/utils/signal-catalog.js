@@ -5,7 +5,7 @@ export const SIGNAL_META = [
   { id: 'cross_above_ma20', direction: 'bullish', label: '站上月線', hint: '收盤價由下向上突破 20 日均線', keywords: ['月線', '均線', 'ma20'] },
   { id: 'cross_above_ma60', direction: 'bullish', label: '站上季線', hint: '收盤價由下向上突破 60 日均線', keywords: ['季線', '均線', 'ma60'] },
   { id: 'break_below_ma20', direction: 'bearish', label: '跌破月線', hint: '收盤價跌破 20 日均線', keywords: ['月線', '均線', '跌破'] },
-  { id: 'short_ma_alignment', direction: 'bullish', label: '站上三短期均線', hint: '收盤價同時站上 5、10、20 日均線', keywords: ['均線', '短期均線', '多頭排列'] },
+  { id: 'short_ma_alignment', direction: 'bullish', label: '剛站上三短期均線', hint: '前一日未同時站上，今日收盤同時站上 5、10、20 日均線', keywords: ['均線', '短期均線', '多頭排列'] },
   { id: 'retest_ma10_reclaim', direction: 'bullish', label: '回測10日線站回', hint: '逼近或跌破 10 日均線後站回', keywords: ['均線', '10日線', '回測'] },
   { id: 'retest_ma20_reclaim', direction: 'bullish', label: '回測20日線站回', hint: '逼近或跌破 20 日均線後站回', keywords: ['均線', '20日線', '月線', '回測'] },
   { id: 'golden_cross', direction: 'bullish', label: '黃金交叉', hint: '5 日均線向上穿越 20 日均線', keywords: ['黃金交叉', '均線', 'golden'] },

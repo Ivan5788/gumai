@@ -40,15 +40,24 @@ export const RULE_TESTS = {
     return last(ma) != null && last(closes) > last(ma)
   },
 
-  // 收盤價同時站上 5 / 10 / 20 日均線（短期多頭排列）
+  // 剛站上三短期均線：前一日收盤在任一均線之下，今日收盤同時站上 5/10/20 日均線
+  // （跟 signal-scanner.js 的 short_ma_alignment 訊號同一個定義——抓「剛站上」那一刻，
+  // 不是「已經站上一段時間」的持續狀態，不然每天都會重複算進同一批早就站上的股票）。
   above_short_mas: ({ candles }) => {
+    if (candles.length < 2) return false
     const closes = candles.map((c) => c.close)
     const ma5 = sma(closes, 5)
     const ma10 = sma(closes, 10)
     const ma20 = sma(closes, 20)
-    if (last(ma5) == null || last(ma10) == null || last(ma20) == null) return false
-    const c = last(closes)
-    return c > last(ma5) && c > last(ma10) && c > last(ma20)
+    const n = closes.length
+    const aligned = (i) =>
+      ma5[i] != null &&
+      ma10[i] != null &&
+      ma20[i] != null &&
+      closes[i] > ma5[i] &&
+      closes[i] > ma10[i] &&
+      closes[i] > ma20[i]
+    return aligned(n - 1) && !aligned(n - 2)
   },
 
   // 回測：近期收盤跌破、或最低價逼近過該均線，且目前收盤已站回均線之上（含）

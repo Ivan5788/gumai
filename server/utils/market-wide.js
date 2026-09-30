@@ -1,5 +1,5 @@
 // 全市場技術面快篩：只存 OHLC（不含三大法人/大戶持股），涵蓋「全部」上市＋上櫃個股，
-// 用來跑只吃K線的技術面規則（站上三短期均線／爆量／突破新高等），不會碰到
+// 用來跑只吃K線的技術面規則（剛站上三短期均線／爆量／突破新高等），不會碰到
 // FinMind／集保那些真正容易卡額度的資料源，所以撐得住上千檔的規模。
 //
 // 上市（TWSE）：MI_INDEX?date=YYYYMMDD&type=ALLBUT0999 —— 官方「單日全市場」端點，
@@ -21,6 +21,10 @@ const BACKFILL_TRADING_DAYS = 30 // 覆蓋 MA20／20日新高／量能比較所�
 const BACKFILL_MAX_CALENDAR_DAYS = 50 // 回溯上限（含週末/假日），避免長假期時無限往回找
 const KEEP_BARS = 40 // 每檔股票保留的K棒數上限（略多於 BACKFILL_TRADING_DAYS，滾動視窗）
 const STORE_KEY = 'market-wide:snapshot'
+// RULE_TESTS／TECH_RULE_IDS 的判斷邏輯有變動時要手動 +1：flags 是跟著K線資料一起
+// 持久化的，單純改規則程式碼、重啟伺服器並不會自動重算，靠這個版號強制重算一次
+// （只是重跑既有K線的規則函式，不必重新抓資料，很快）。
+const RULES_VERSION = 2
 // 只收一般個股（4 碼數字）。兩邊「全市場」端點實際上會把 ETF／債券 ETF／存託憑證
 // 等也混在一起回傳（例如上櫃 00679B 元大美債20年）——這些不是使用者說的「選股」，
 // 價格幾乎不動也會稀釋均線/爆量/創高這類技術條件的意義，直接濾掉。
@@ -227,6 +231,7 @@ export function ensureMarketWideSnapshot() {
       }
       trimAndFlag()
       meta.backfillDone = store.size > 0
+      meta.rulesVersion = RULES_VERSION
       await persist()
     })()
       .catch(() => {})
@@ -274,10 +279,18 @@ export function ensureMarketWideSnapshot() {
     })
 }
 
+let flagsRechecked = false
+
 export async function getMarketWideSnapshot() {
   if (!store.size) {
     await restore()
     if (store.size) trimAndFlag()
+  }
+  if (!flagsRechecked && store.size && meta.rulesVersion !== RULES_VERSION) {
+    flagsRechecked = true
+    trimAndFlag()
+    meta.rulesVersion = RULES_VERSION
+    await persist()
   }
   ensureMarketWideSnapshot()
   return { meta, store }
