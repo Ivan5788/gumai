@@ -27,6 +27,8 @@
 </template>
 
 <script setup>
+const { client } = useApi()
+
 const props = defineProps({
   market: { type: String, required: true }, // 'TWSE' | 'TPEX'
   limit: { type: Number, default: null } // 不傳則顯示全部
@@ -36,11 +38,37 @@ const { data, pending: fetchPending, error } = await useApiFetch(() => `/market/
   key: () => `weighted-${props.market}`
 })
 
-const pending = computed(() => fetchPending.value && !data.value)
-const label = computed(() => data.value?.label ?? (props.market === 'TWSE' ? '上市' : '上櫃'))
-const total = computed(() => data.value?.total ?? 0)
+// 首頁是完全預渲染的靜態頁，SSR 當下抓到的資料只是「build 那一刻」的快照，
+// 沒有瀏覽器端刷新的話，使用者看到的股價可能是好幾天前 build 時的舊資料。
+// 比照 MarketIndexBar：掛載後立即刷新一次、之後每 5 分鐘刷新一次
+// （跟伺服器端 /market/weighted/:market 的 5 分鐘快取 TTL 對齊，刷更快也拿不到更新的值）。
+const live = ref(null)
+let timer = null
+async function refresh() {
+  try {
+    live.value = await client(`/market/weighted/${props.market}`)
+  } catch {
+    // 保留現有值
+  }
+}
+onMounted(() => {
+  refresh()
+  timer = setInterval(refresh, 5 * 60 * 1000)
+})
+onBeforeUnmount(() => timer && clearInterval(timer))
+watch(
+  () => props.market,
+  () => {
+    live.value = null // 換市場時清掉舊的即時覆蓋值，避免殘留另一個市場的資料
+  }
+)
+
+const current = computed(() => live.value ?? data.value)
+const pending = computed(() => fetchPending.value && !current.value)
+const label = computed(() => current.value?.label ?? (props.market === 'TWSE' ? '上市' : '上櫃'))
+const total = computed(() => current.value?.total ?? 0)
 const rows = computed(() => {
-  const items = data.value?.items ?? []
+  const items = current.value?.items ?? []
   return props.limit ? items.slice(0, props.limit) : items
 })
 const showMore = computed(() => props.limit && total.value > props.limit)

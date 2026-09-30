@@ -2,10 +2,12 @@ import { findMockStock } from './mock-stocks'
 import { getTwseDailyCandles } from './twse'
 import { getYahooMeta, getYahooQuote } from './yahoo'
 import { getFinmindStockInfo } from './finmind'
+import { getMisQuote, misExCh } from './twse-mis'
 
 const TWSE_ENABLED = process.env.NUXT_TWSE_ENABLED !== 'false'
 const YAHOO_ENABLED = process.env.NUXT_YAHOO_ENABLED !== 'false'
 const FINMIND_ENABLED = process.env.NUXT_FINMIND_ENABLED !== 'false'
+const MIS_ENABLED = process.env.NUXT_MIS_ENABLED !== 'false'
 
 const TW_CODE = /^[0-9]{4,6}[A-Z]?$/
 const US_CODE = /^[A-Z]{1,5}([.-][A-Z]{1,2})?$/
@@ -16,15 +18,29 @@ const US_CODE = /^[A-Z]{1,5}([.-][A-Z]{1,2})?$/
 const NEGATIVE_TTL = 15 * 60 * 1000
 const negativeMemo = new Map() // symbol -> expiresAt
 
+// 這裡算出來的 previousClose 只在 resolveQuote()（stock-quote.js）拿不到 MIS／Yahoo
+// 報價時才會真的被用到；但 resolveStock() 每次解析全新代號都會先跑這段，
+// 優先順序 MIS（通常 < 1 秒）→ Yahoo → 證交所 STOCK_DAY。
+// 證交所刻意放最後：它是全站共用同一個 1.2 秒節流佇列（twse.js），MIS 剛好不穩
+// （已知偶發）時，像權值股清單一次要解析 50 檔這種場景，50 檔全部擠進同一個
+// 節流佇列會直接爆到 60 秒以上；Yahoo 沒有這種全域節流，同時查多檔不會互卡。
 async function twPreviousClose(symbol, listing) {
-  try {
-    if (listing === 'TWSE' && TWSE_ENABLED) {
-      const d = await getTwseDailyCandles(symbol, 2)
-      if (d.length) return d[d.length - 1].close
+  if (MIS_ENABLED) {
+    try {
+      const m = await getMisQuote(misExCh({ market: 'TW', symbol, listing }))
+      if (m && m.previousClose != null) return m.previousClose
+    } catch {
+      // 落到下一層
     }
+  }
+  try {
     if (YAHOO_ENABLED) {
       const q = await getYahooQuote({ symbol, market: 'TW', listing })
       if (q) return q.previousClose
+    }
+    if (listing === 'TWSE' && TWSE_ENABLED) {
+      const d = await getTwseDailyCandles(symbol, 2)
+      if (d.length) return d[d.length - 1].close
     }
   } catch {
     // null
