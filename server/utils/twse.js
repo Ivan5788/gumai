@@ -20,7 +20,7 @@ const queues = { high: [], low: [] }
 const pendingByKey = new Map() // key -> job
 let pumping = false
 
-function throttle(task, { priority = 'high', key = null } = {}) {
+export function throttle(task, { priority = 'high', key = null } = {}) {
   const level = priority === 'low' ? 'low' : 'high'
 
   if (key && pendingByKey.has(key)) {

@@ -12,6 +12,21 @@
     <div class="screener">
       <form class="screener__filters" aria-label="選股條件" @submit.prevent>
         <fieldset>
+          <legend>範圍</legend>
+          <div class="seg">
+            <button
+              v-for="s in scopeOptions"
+              :key="s.id"
+              type="button"
+              :class="{ 'is-active': scope === s.id }"
+              @click="setScope(s.id)"
+            >
+              {{ s.label }}
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset v-if="scope === 'pool'">
           <legend>市場</legend>
           <div class="seg">
             <button
@@ -41,7 +56,7 @@
           </div>
         </fieldset>
 
-        <fieldset v-for="cat in SCREENER_CATEGORIES" :key="cat.id" class="screener__rules">
+        <fieldset v-for="cat in visibleCategories" :key="cat.id" class="screener__rules">
           <legend>{{ cat.label }}</legend>
           <label v-for="rule in rulesByCategory[cat.id]" :key="rule.id" class="rule">
             <input
@@ -91,7 +106,7 @@
                   <NuxtLink :to="`/stock/${row.symbol}`">{{ row.symbol }}</NuxtLink>
                 </th>
                 <td>{{ row.name }}</td>
-                <td>{{ row.market === 'TW' ? '台股' : '美股' }}</td>
+                <td>{{ scope === 'market' ? (row.listing === 'TPEx' ? '上櫃' : '上市') : row.market === 'TW' ? '台股' : '美股' }}</td>
                 <td>{{ formatPrice(row.price) }}</td>
                 <td :class="trendClass(row.change)">
                   {{ formatSigned(row.change) }}（{{ formatPercent(row.changePercent) }}）
@@ -114,10 +129,15 @@
 // 大戶買賣力仍為示範資料（需付費逐筆成交/內外盤資料），未開放時整個功能面隱藏——見 shared/utils/screener-catalog.js
 const bigPowerEnabled = useRuntimeConfig().public.bigPowerEnabled
 
+const scope = ref('pool')
 const market = ref('ALL')
 const matchMode = ref('all')
 const selectedRules = ref([])
 
+const scopeOptions = [
+  { id: 'pool', label: '股票池精選' },
+  { id: 'market', label: '全市場快篩' }
+]
 const marketOptions = [
   { id: 'ALL', label: '全部' },
   { id: 'TW', label: '台股' },
@@ -127,6 +147,20 @@ const matchOptions = [
   { id: 'all', label: '符合全部' },
   { id: 'any', label: '符合任一' }
 ]
+
+// 全市場快篩只跑純技術面規則（只吃K線）——沒有三大法人/大戶持股資料，
+// 籌碼面條件在這個範圍下永遠不會有結果，所以切過去時把條件類別、清單都跟著篩掉。
+function setScope(id) {
+  scope.value = id
+  if (id === 'market') {
+    market.value = 'ALL'
+    selectedRules.value = selectedRules.value.filter((r) => visibleScreenerRules(bigPowerEnabled).find((m) => m.id === r)?.category === 'tech')
+  }
+}
+
+const visibleCategories = computed(() =>
+  scope.value === 'market' ? SCREENER_CATEGORIES.filter((c) => c.id === 'tech') : SCREENER_CATEGORIES
+)
 
 const rulesByCategory = computed(() => {
   const rules = visibleScreenerRules(bigPowerEnabled)
@@ -147,6 +181,7 @@ const requestUrl = computed(() => {
   const params = new URLSearchParams()
   if (selectedRules.value.length) params.set('rules', selectedRules.value.join(','))
   params.set('match', matchMode.value)
+  if (scope.value === 'market') return `/screener/market-wide?${params.toString()}`
   if (market.value !== 'ALL') params.set('market', market.value)
   return `/screener?${params.toString()}`
 })
@@ -158,6 +193,16 @@ const { data, status, error } = await useApiFetch(requestUrl, {
 const pending = computed(() => status.value === 'pending' && !data.value)
 
 const poolNote = computed(() => {
+  if (scope.value === 'market') {
+    if (!data.value) return '全市場快取建立中，稍後重新整理即有資料。'
+    if (!data.value.backfillDone) {
+      return `上市歷史回補中（目前已有 ${data.value.poolSize} 檔），完成前條件可能還不會有結果，稍後重新整理。`
+    }
+    const parts = [`涵蓋全市場 ${data.value.poolSize} 檔（上市＋上櫃）`]
+    if (data.value.lastTwseDate) parts.push(`上市資料至 ${data.value.lastTwseDate}`)
+    if (data.value.lastTpexDate) parts.push(`上櫃資料至 ${data.value.lastTpexDate}`)
+    return `${parts.join('，')}。上櫃無官方歷史批次來源，上線後逐日累積，天數不足的均線/新高條件暫不會列入該檔。只支援技術面條件，不含三大法人／大戶持股。`
+  }
   if (data.value?.source === 'live') {
     const mockHint = bigPowerEnabled ? '（大戶買賣力仍為示範）' : ''
     return `股票池為 ${data.value.poolSize} 檔台股權值股與熱門美股，技術面／籌碼面指標於盤後更新${mockHint}。`
