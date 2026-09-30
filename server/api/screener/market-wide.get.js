@@ -39,6 +39,7 @@ export default defineEventHandler(async (event) => {
       price: last.close,
       change,
       changePercent: prev?.close ? round2((change / prev.close) * 100) : 0,
+      volume: last.volume ?? null,
       matched
     })
   }

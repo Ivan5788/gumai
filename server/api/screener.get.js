@@ -32,6 +32,7 @@ export default defineEventHandler(async (event) => {
       price: r.close,
       change: r.change,
       changePercent: r.changePercent,
+      volume: r.volume,
       matched
     })
   }

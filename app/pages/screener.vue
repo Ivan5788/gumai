@@ -95,13 +95,18 @@
                 <th scope="col">代號</th>
                 <th scope="col">名稱</th>
                 <th scope="col">市場</th>
-                <th scope="col">現價</th>
+                <th scope="col" class="is-sortable" @click="setSort('price')">
+                  現價{{ sortIndicator('price') }}
+                </th>
                 <th scope="col">漲跌</th>
+                <th scope="col" class="is-sortable" @click="setSort('volume')">
+                  成交量（張）{{ sortIndicator('volume') }}
+                </th>
                 <th scope="col">符合條件</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in data.results" :key="row.symbol">
+              <tr v-for="row in sortedResults" :key="row.symbol">
                 <th scope="row">
                   <NuxtLink :to="`/stock/${row.symbol}`">{{ row.symbol }}</NuxtLink>
                 </th>
@@ -111,6 +116,7 @@
                 <td :class="trendClass(row.change)">
                   {{ formatSigned(row.change) }}（{{ formatPercent(row.changePercent) }}）
                 </td>
+                <td>{{ formatNumber(row.volume) }}</td>
                 <td>
                   <span v-for="id in row.matched" :key="id" class="tag">{{ screenerRuleLabel(id) }}</span>
                   <span v-if="!row.matched.length" class="screener__muted">—</span>
@@ -191,6 +197,37 @@ const { data, status, error } = await useApiFetch(requestUrl, {
 })
 
 const pending = computed(() => status.value === 'pending' && !data.value)
+
+const sortKey = ref(null) // null（沿用 API 原始順序）| 'price' | 'volume'
+const sortDir = ref('desc')
+
+function setSort(key) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'desc'
+  }
+}
+
+function sortIndicator(key) {
+  if (sortKey.value !== key) return ''
+  return sortDir.value === 'desc' ? ' ▼' : ' ▲'
+}
+
+const sortedResults = computed(() => {
+  const rows = data.value?.results ?? []
+  if (!sortKey.value) return rows
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const av = a[sortKey.value]
+    const bv = b[sortKey.value]
+    if (av == null && bv == null) return 0
+    if (av == null) return 1
+    if (bv == null) return -1
+    return (av - bv) * dir
+  })
+})
 
 const poolNote = computed(() => {
   if (scope.value === 'market') {
@@ -422,6 +459,15 @@ useWebPageJsonLd({
     background: $color-surface-active;
     color: $color-text-muted;
     font-weight: 600;
+  }
+
+  thead th.is-sortable {
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      color: $color-text;
+    }
   }
 
   th[scope='row'] {
