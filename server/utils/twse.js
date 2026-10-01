@@ -227,6 +227,11 @@ async function getStockDayAll() {
 // 把 STOCK_DAY_ALL 的最新一天合併進「已存在」的當月快取（只補新的一天）。
 // 該股票、該月份還沒被抓過（沒有既有快取）時略過 —— 避免只有單日、其餘留白，
 // 交給 getTwseDailyCandles 的正常流程（逐檔 STOCK_DAY）第一次完整補齊該月。
+//
+// 注意：這裡故意保留原本的 at（不要改成 Date.now()）。getMonth() 靠 at 判斷
+// 當月快取是否該整月重抓（30 分鐘 TTL）；如果每次補單日都把 at 洗新，一旦當月
+// 快取在某次意外不完整（例如中間缺了幾天），之後就再也不會觸發整月重抓去自我
+// 修復，缺口會永遠卡住。只有 getMonth() 自己做的「整月重抓」才該更新 at。
 export async function refreshTodayForAll(stockNumbers) {
   const snap = await getStockDayAll()
   if (!snap?.date || !stockNumbers?.length) return
@@ -246,7 +251,7 @@ export async function refreshTodayForAll(stockNumbers) {
     const rows = existing.rows.filter((r) => r.time !== row.time)
     rows.push(row)
     rows.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-    await store.setItem(key, { at: Date.now(), rows })
+    await store.setItem(key, { at: existing.at, rows })
   }
 }
 
