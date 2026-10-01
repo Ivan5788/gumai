@@ -133,7 +133,11 @@ async function getMonth(stockNo, year, month, priority = 'high') {
   const store = useStorage('data')
 
   const cached = await store.getItem(key)
-  if (cached && (!isCurrent || Date.now() - cached.at < CACHE_TTL_CURRENT)) {
+  // 過往月份的快取只有在「該月結束後」才寫入的才算定案；月中寫入的（例如
+  // 9/29 盤前快取的 9 月）會缺月底那幾天，跨月後若直接沿用就永遠補不回來。
+  const monthEnd = new Date(year, month, 1).getTime()
+  const isFinal = !isCurrent && cached && cached.at >= monthEnd
+  if (cached && (isFinal || (isCurrent && Date.now() - cached.at < CACHE_TTL_CURRENT))) {
     return cached.rows
   }
 
