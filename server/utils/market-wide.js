@@ -11,6 +11,7 @@
 // 不會算出錯的結果，只是「還不會出現在結果裡」。
 
 import { throttle } from './twse'
+import { getMisQuotesBatch } from './twse-mis'
 import { RULE_TESTS } from './screener-rules'
 // SCREENER_RULES_META 來自 shared/utils/，app 與 server 皆自動匯入，不需 import
 
@@ -29,7 +30,12 @@ const RULES_VERSION = 2
 // 等也混在一起回傳（例如上櫃 00679B 元大美債20年）——這些不是使用者說的「選股」，
 // 價格幾乎不動也會稀釋均線/爆量/創高這類技術條件的意義，直接濾掉。
 const STOCK_CODE_RE = /^\d{4}$/
-const DAILY_TRIGGER_MIN = 15 * 60 // 每天 15:00（台北時間）補當天資料，早於此在等兩邊收盤結算
+const DAILY_TRIGGER_MIN = 15 * 60 // 每天 15:00（台北時間）補官方收盤後資料，早於此在等兩邊結算
+// 盤中兩個時間點（比照 pool-snapshot.js 的股票池精選）用 MIS 批次報價覆蓋「今日」
+// 這根K棒，讓全市場快篩也不用等到 15:00 收盤後才看到今天的暫定結果；15:00 的官方
+// 資料之後還是會照常把這個暫定值換成正式收盤（mergeRows 同一天直接覆蓋，不會疊加）。
+const INTRADAY_SLOTS_MIN = [13 * 60, 13 * 60 + 15]
+const INTRADAY_GRACE_MIN = 30
 
 // 只有純技術面（只吃K線）的規則適用全市場快篩；籌碼面規則需要法人/持股資料，這裡沒有。
 const TECH_RULE_IDS = SCREENER_RULES_META.filter((r) => r.category === 'tech').map((r) => r.id)
@@ -132,9 +138,43 @@ async function fetchTpexLatestDay() {
 // ── 快照狀態（記憶體 + 持久化）────────────────────────────
 
 let store = new Map() // symbol -> { name, listing, candles: [{time,open,high,low,close,volume}], flags }
-let meta = { backfillDone: false, lastTwseDate: null, lastTpexDate: null, updatedAt: null }
+let meta = { backfillDone: false, lastTwseDate: null, lastTpexDate: null, updatedAt: null, intraday: false }
 let backfilling = false
-let triggeredToday = { dateKey: null, done: false }
+let triggeredToday = { dateKey: null, dailyDone: false, intradaySlots: new Set() }
+
+// 用 MIS 即時報價覆蓋（或補上）候選K線陣列的最後一根，當作「今日暫定」收盤
+// （跟 pool-snapshot.js 的同名函式邏輯一致，兩邊各自維護自己的資料，沒有共用狀態可拆）。
+function overlayIntradayCandle(candles, row) {
+  if (!candles.length || !row) return candles
+  const last = candles[candles.length - 1]
+  const time = row.date ? `${row.date.slice(0, 4)}-${row.date.slice(4, 6)}-${row.date.slice(6, 8)}` : last.time
+  const bar = {
+    time,
+    open: row.open ?? row.price,
+    high: row.high ?? row.price,
+    low: row.low ?? row.price,
+    close: row.price,
+    volume: row.volume ?? last.volume ?? 0
+  }
+  return last.time === time ? [...candles.slice(0, -1), bar] : [...candles, bar]
+}
+
+// 盤中時間點是否到了（同一天同一個時間點只觸發一次）。
+function dueIntradaySlot() {
+  const { dateKey, weekday, minutes } = taipeiClock()
+  if (weekday === 0 || weekday === 6) return null
+  if (triggeredToday.dateKey !== dateKey) {
+    triggeredToday = { dateKey, dailyDone: false, intradaySlots: new Set() }
+  }
+  for (const slotMin of INTRADAY_SLOTS_MIN) {
+    if (triggeredToday.intradaySlots.has(slotMin)) continue
+    if (minutes >= slotMin && minutes < slotMin + INTRADAY_GRACE_MIN) {
+      triggeredToday.intradaySlots.add(slotMin)
+      return slotMin
+    }
+  }
+  return null
+}
 
 function mergeRows(rows) {
   if (!rows) return
@@ -241,14 +281,43 @@ export function ensureMarketWideSnapshot() {
     return
   }
 
-  // 已回補過：每天 15:00（台北時間，兩邊交易所都已結算當天資料）補一次當天，其餘時間不動。
+  // 已回補過：盤中 13:00／13:15 用 MIS 覆蓋今日暫定值，15:00 補一次官方收盤後資料，
+  // 其餘時間不動。同一輪只做其中一件（backfilling 旗標擋住同時觸發），兩種觸發
+  // 互相獨立判斷，先看是不是到了盤中時間點。
+  const intradaySlot = dueIntradaySlot()
+  if (intradaySlot != null) {
+    backfilling = true
+    ;(async () => {
+      try {
+        const misRows = await getMisQuotesBatch([...store.entries()].map(([symbol, e]) => ({ symbol, market: 'TW', listing: e.listing })))
+        for (const [symbol, row] of misRows) {
+          const entry = store.get(symbol)
+          if (!entry) continue
+          entry.candles = overlayIntradayCandle(entry.candles, row)
+          // 漲跌直接用 MIS 自己算好的，不要用本地K線陣列前一根去減——那一根可能因為
+          // 假期缺口等原因跟 MIS 認定的「昨收」不同步（跟 pool-snapshot.js 同一個教訓）。
+          entry.intradayChange = { change: row.change, changePercent: row.changePercent }
+        }
+        meta.intraday = misRows.size > 0
+      } catch {
+        // 落回：這次不覆蓋今日暫定價
+      }
+      trimAndFlag()
+      await persist()
+    })()
+      .catch(() => {})
+      .finally(() => {
+        backfilling = false
+      })
+    return
+  }
+
   const { dateKey, weekday, minutes } = taipeiClock()
   if (weekday === 0 || weekday === 6) return
-  if (triggeredToday.dateKey !== dateKey) triggeredToday = { dateKey, done: false }
-  if (triggeredToday.done) return
+  if (triggeredToday.dailyDone) return
   if (minutes < DAILY_TRIGGER_MIN) return
 
-  triggeredToday.done = true
+  triggeredToday.dailyDone = true
   backfilling = true
   ;(async () => {
     const yyyymmdd = dateKey.replace(/-/g, '')
@@ -257,6 +326,11 @@ export function ensureMarketWideSnapshot() {
       if (rows && rows.length) {
         mergeRows(rows)
         meta.lastTwseDate = dateKey
+        // 官方正式收盤資料已經補到，蓋掉盤中暫定值留下的 intradayChange
+        for (const { symbol } of rows) {
+          const entry = store.get(symbol)
+          if (entry) delete entry.intradayChange
+        }
       }
     } catch {
       // 落回：上市今天沒補到，維持原本資料
@@ -266,10 +340,15 @@ export function ensureMarketWideSnapshot() {
       if (tpex && tpex.length) {
         mergeRows(tpex)
         meta.lastTpexDate = tpex[0].bar.time
+        for (const { symbol } of tpex) {
+          const entry = store.get(symbol)
+          if (entry) delete entry.intradayChange
+        }
       }
     } catch {
       // 落回：上櫃今天沒補到
     }
+    meta.intraday = false // 15:00 這次用的是官方正式收盤資料，不是暫定值
     trimAndFlag()
     await persist()
   })()

@@ -30,7 +30,18 @@ export default defineEventHandler(async (event) => {
 
     const last = candles[candles.length - 1]
     const prev = candles[candles.length - 2]
-    const change = prev ? round2(last.close - prev.close) : 0
+    // 盤中暫定值直接用 MIS 自己算好的漲跌（跟個股報價頁同一個基準），不要用本地
+    // K線陣列前一根去減——見 market-wide.js 的 intradayChange 說明。
+    const change = entry.intradayChange
+      ? round2(entry.intradayChange.change)
+      : prev
+        ? round2(last.close - prev.close)
+        : 0
+    const changePercent = entry.intradayChange
+      ? round2(entry.intradayChange.changePercent)
+      : prev?.close
+        ? round2((change / prev.close) * 100)
+        : 0
     results.push({
       symbol,
       name: entry.name,
@@ -38,7 +49,7 @@ export default defineEventHandler(async (event) => {
       listing: entry.listing,
       price: last.close,
       change,
-      changePercent: prev?.close ? round2((change / prev.close) * 100) : 0,
+      changePercent,
       volume: last.volume ?? null,
       matched
     })
@@ -54,6 +65,7 @@ export default defineEventHandler(async (event) => {
     count: results.length,
     poolSize: store.size,
     backfillDone: meta.backfillDone,
+    intraday: Boolean(meta.intraday),
     lastTwseDate: meta.lastTwseDate,
     lastTpexDate: meta.lastTpexDate,
     updatedAt: meta.updatedAt ? new Date(meta.updatedAt).toISOString() : null,

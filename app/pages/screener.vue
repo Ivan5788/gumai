@@ -236,6 +236,7 @@ const poolNote = computed(() => {
       return `上市歷史回補中（目前已有 ${data.value.poolSize} 檔），完成前條件可能還不會有結果，稍後重新整理。`
     }
     const parts = [`涵蓋全市場 ${data.value.poolSize} 檔（上市＋上櫃）`]
+    parts.push(data.value.intraday ? '目前為盤中暫定值（13:00/13:15 更新）' : '目前為前一交易日收盤結果（15:00 更新當天）')
     if (data.value.lastTwseDate) parts.push(`上市資料至 ${data.value.lastTwseDate}`)
     if (data.value.lastTpexDate) parts.push(`上櫃資料至 ${data.value.lastTpexDate}`)
     return `${parts.join('，')}。上櫃無官方歷史批次來源，上線後逐日累積，天數不足的均線/新高條件暫不會列入該檔。只支援技術面條件，不含三大法人／大戶持股。`

@@ -6,10 +6,16 @@
 // 呼叫端一律要包 try/catch，失敗就落回既有的 Yahoo 延遲報價 / 證交所盤後批次資料，
 // 不能讓這個來源的不穩定影響到已經可靠運作的既有機制。
 
+import { mapLimit } from './concurrency'
+
 const BASE = 'https://mis.twse.com.tw/stock/api/getStockInfo.jsp'
 const UA = 'Mozilla/5.0 (GuMai)'
 const REFERER = 'https://mis.twse.com.tw/stock/index.jsp'
 const CACHE_TTL = 5000 // 跟官方 userDelay 同級，更頻繁地打也拿不到更新的值
+// 單次請求查太多檔，ex_ch 組出來的 URL 會過長（全市場快篩要查近 2000 檔）；
+// 分批查，批次間用有限並行（不是一次全部發出去），對 MIS 溫和一點。
+const BATCH_CHUNK_SIZE = 100
+const BATCH_CONCURRENCY = 5
 
 const memo = new Map() // ex_ch 組合字串 -> { at, rows: Map(code -> row) }
 
@@ -88,13 +94,26 @@ export async function getMisQuote(exCh) {
 
 // 批次（股票池等）。stocks: [{symbol, market, listing}]，非台股會被忽略。
 // 回傳 Map(symbol -> row)，查不到的檔就沒有這個 key。
+// 檔數多時自動分批（見 BATCH_CHUNK_SIZE），單一批失敗不影響其他批的結果。
 export async function getMisQuotesBatch(stocks) {
   const list = stocks.map((s) => ({ symbol: s.symbol, exCh: misExCh(s) })).filter((s) => s.exCh)
   if (!list.length) return new Map()
-  const rows = await fetchBatch(list.map((s) => s.exCh))
-  const out = new Map()
-  for (const { symbol } of list) {
-    if (rows.has(symbol)) out.set(symbol, rows.get(symbol))
+
+  const chunks = []
+  for (let i = 0; i < list.length; i += BATCH_CHUNK_SIZE) {
+    chunks.push(list.slice(i, i + BATCH_CHUNK_SIZE))
   }
+
+  const out = new Map()
+  await mapLimit(chunks, BATCH_CONCURRENCY, async (chunk) => {
+    try {
+      const rows = await fetchBatch(chunk.map((s) => s.exCh))
+      for (const { symbol } of chunk) {
+        if (rows.has(symbol)) out.set(symbol, rows.get(symbol))
+      }
+    } catch {
+      // 這批失敗就跳過，不影響其他批已經拿到的結果
+    }
+  })
   return out
 }
