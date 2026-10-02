@@ -146,19 +146,25 @@ let triggeredToday = { dateKey: null, dailyDone: false, intradaySlots: new Set()
 
 // 用 MIS 即時報價覆蓋（或補上）候選K線陣列的最後一根，當作「今日暫定」收盤
 // （跟 pool-snapshot.js 的同名函式邏輯一致，兩邊各自維護自己的資料，沒有共用狀態可拆）。
-function overlayIntradayCandle(candles, row) {
+//
+// todayIso 一定要用「現在的台北日期」算，不能信任 row.date——MIS 的 d/t 欄位是
+// 「最近一筆成交」的日期時間，冷門股盤中還沒成交過時，d 仍會停在昨天（甚至更早）。
+// 如果照 row.date 判斷要不要覆蓋最後一根，遇到這種情況會把「昨天」那根直接覆蓋成
+// 今天的暫定值，等於用今天的（其實是昨天的殘值）報價把昨天的真實收盤蓋掉——
+// 比較「今天 vs 昨天」站上均線時，被覆蓋掉的那個昨天就會變成別的（更早的）一天，
+// 若那天剛好沒站上，就會誤判成「今天剛站上」，即使前一天其實已經站上。
+function overlayIntradayCandle(candles, row, todayIso) {
   if (!candles.length || !row) return candles
   const last = candles[candles.length - 1]
-  const time = row.date ? `${row.date.slice(0, 4)}-${row.date.slice(4, 6)}-${row.date.slice(6, 8)}` : last.time
   const bar = {
-    time,
+    time: todayIso,
     open: row.open ?? row.price,
     high: row.high ?? row.price,
     low: row.low ?? row.price,
     close: row.price,
     volume: row.volume ?? last.volume ?? 0
   }
-  return last.time === time ? [...candles.slice(0, -1), bar] : [...candles, bar]
+  return last.time === todayIso ? [...candles.slice(0, -1), bar] : [...candles, bar]
 }
 
 // 盤中時間點是否到了（同一天同一個時間點只觸發一次）。
@@ -291,11 +297,12 @@ export function ensureMarketWideSnapshot() {
     backfilling = true
     ;(async () => {
       try {
+        const todayIso = taipeiClock().dateKey
         const misRows = await getMisQuotesBatch([...store.entries()].map(([symbol, e]) => ({ symbol, market: 'TW', listing: e.listing })))
         for (const [symbol, row] of misRows) {
           const entry = store.get(symbol)
           if (!entry) continue
-          entry.candles = overlayIntradayCandle(entry.candles, row)
+          entry.candles = overlayIntradayCandle(entry.candles, row, todayIso)
           // 漲跌直接用 MIS 自己算好的，不要用本地K線陣列前一根去減——那一根可能因為
           // 假期缺口等原因跟 MIS 認定的「昨收」不同步（跟 pool-snapshot.js 同一個教訓）。
           entry.intradayChange = { change: row.change, changePercent: row.changePercent }

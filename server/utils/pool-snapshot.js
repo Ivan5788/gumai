@@ -77,19 +77,25 @@ function dueIntradaySlot() {
 }
 
 // 用 MIS 即時報價覆蓋（或補上）候選K線陣列的最後一根，當作「今日暫定」收盤。
-function overlayIntradayCandle(candles, row) {
+//
+// todayIso 一定要用「現在的台北日期」算，不能信任 row.date——MIS 的 d/t 欄位是
+// 「最近一筆成交」的日期時間，冷門股盤中還沒成交過時，d 仍會停在昨天（甚至更早）。
+// 如果照 row.date 判斷要不要覆蓋最後一根，遇到這種情況會把「昨天」那根直接覆蓋成
+// 今天的暫定值，等於用今天的（其實是昨天的殘值）報價把昨天的真實收盤蓋掉——
+// 比較「今天 vs 昨天」站上均線時，被覆蓋掉的那個昨天就會變成別的（更早的）一天，
+// 若那天剛好沒站上，就會誤判成「今天剛站上」，即使前一天其實已經站上。
+function overlayIntradayCandle(candles, row, todayIso) {
   if (!candles.length || !row) return candles
   const last = candles[candles.length - 1]
-  const time = row.date ? `${row.date.slice(0, 4)}-${row.date.slice(4, 6)}-${row.date.slice(6, 8)}` : last.time
   const bar = {
-    time,
+    time: todayIso,
     open: row.open ?? row.price,
     high: row.high ?? row.price,
     low: row.low ?? row.price,
     close: row.price,
     volume: row.volume ?? last.volume ?? 0
   }
-  return last.time === time ? [...candles.slice(0, -1), bar] : [...candles, bar]
+  return last.time === todayIso ? [...candles.slice(0, -1), bar] : [...candles, bar]
 }
 
 function round2(v) {
@@ -219,12 +225,13 @@ async function buildLive({ intraday = false } = {}) {
       // 落回：這次不覆蓋今日暫定價
     }
   }
+  const todayIso = taipeiClock().dateKey
 
   const results = await mapLimit(stocks, 6, async (stock) => {
     try {
       let candles = await candlesFor(stock)
       const misRow = misRows.get(stock.symbol)
-      if (misRow) candles = overlayIntradayCandle(candles, misRow)
+      if (misRow) candles = overlayIntradayCandle(candles, misRow, todayIso)
       const institutional = await institutionalFor(stock)
       const holders = await holdersFor(stock)
       return buildRow(stock, candles, institutional, holders, misRow)
