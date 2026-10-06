@@ -161,6 +161,9 @@ const {
 const quote = computed(() => liveQuote.value ?? stock.value.quote ?? {})
 const trend = computed(() => trendOf(quote.value.change))
 const quoteDisclaimer = computed(() => {
+  if (quote.value.source === 'twse') {
+    return '行情為證交所正式收盤資料（含完整成交量），每日固定收盤後更新。'
+  }
   if (quote.value.source === 'twse-mis') {
     return '行情為證交所盤中即時資訊，約 5 秒延遲；正式交易決策請以官方公告為準。'
   }
