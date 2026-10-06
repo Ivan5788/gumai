@@ -11,7 +11,7 @@
       <h1>{{ idx.name }}走勢圖與即時點數</h1>
       <p class="lede">
         {{ idx.name }}為{{ idx.market }}市場的大盤指數。本頁提供{{ idx.name }}的最新點數、漲跌、開高低，
-        以及日 K、週 K<span v-if="code === 'TAIEX'">、60 分 K 與當日走勢</span>與均線（MA5／MA20／MA60）。
+        以及日 K、週 K<span v-if="code === 'TAIEX'">、60 分 K 與當日走勢</span>與均線（MA5／MA10／MA20／MA60）。
       </p>
     </header>
 

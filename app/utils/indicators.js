@@ -16,6 +16,7 @@ export function maLine(candles, period) {
 // 常用均線週期與顏色（看盤慣用）
 export const MA_PRESETS = [
   { period: 5, label: 'MA5', color: '#f2c94c' },
+  { period: 10, label: 'MA10', color: '#2dd4bf' },
   { period: 20, label: 'MA20', color: '#5aa7ff' },
   { period: 60, label: 'MA60', color: '#bb6bd9' }
 ]

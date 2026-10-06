@@ -98,7 +98,7 @@ const tabs = [
 const INTERVAL_BY_TAB = { intraday: 'intraday', '60m': '60m', daily: '1d', weekly: '1wk' }
 
 const activeTab = ref('daily')
-const activeMa = ref([5, 20, 60])
+const activeMa = ref([5, 10, 20, 60])
 const showMa = computed(() => activeTab.value !== 'intraday')
 
 const endpoint = computed(() => {

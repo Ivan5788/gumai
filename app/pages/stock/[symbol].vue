@@ -91,7 +91,7 @@
     <section aria-labelledby="stock-chart">
       <h2 id="stock-chart">走勢圖</h2>
       <p class="section-hint">
-        提供當日走勢、60 分 K、日 K、週 K 與均線（MA5／MA20／MA60）。K 線圖為互動元件，於瀏覽器載入。
+        提供當日走勢、60 分 K、日 K、週 K 與均線（MA5／MA10／MA20／MA60）。K 線圖為互動元件，於瀏覽器載入。
       </p>
       <ClientOnly>
         <StockChartPanel
