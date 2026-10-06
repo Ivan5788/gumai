@@ -53,6 +53,10 @@ let resizeObserver = null
 let drawPriceLines = new Map()
 let drawSeries = new Map()
 let pendingTrend = null
+let lastRangeKey = null // 用來判斷資料是不是真的換了（換代號/切換週期），只有這種情況才重設預設可視範圍——
+// 單純勾選/取消均線、昨收線變動不會改到這個 key，不會打斷使用者手動移動/縮放的畫面。
+
+const DEFAULT_RANGE_DAYS = 183 // 約 6 個月
 
 const THEME = {
   text: '#8b9bb4',
@@ -112,7 +116,7 @@ async function buildChart() {
       borderColor: THEME.border,
       timeVisible: props.type === 'area' || props.showTime,
       secondsVisible: false,
-      rightOffset: 3
+      rightOffset: 0
     },
     crosshair: { mode: lib.CrosshairMode.Normal },
     localization: {
@@ -218,9 +222,37 @@ function applyData() {
     })
   }
 
-  chart.timeScale().fitContent()
+  const data = props.type === 'area' ? props.line : props.candles
+  const rangeKey = data.length ? `${data[0].time}|${data[data.length - 1].time}|${data.length}` : null
+  if (rangeKey !== lastRangeKey) {
+    lastRangeKey = rangeKey
+    applyDefaultRange(data)
+  }
   applyDrawings()
   updateLegend(null)
+}
+
+// 預設只顯示最近 6 個月（今天往前推），更早的資料仍在，移動/縮放就看得到；
+// 資料總長本來就不到 6 個月（如 60 分K、當日走勢）就等於顯示全部。
+function applyDefaultRange(data) {
+  if (!data.length) {
+    chart.timeScale().fitContent()
+    return
+  }
+  const lastTime = data[data.length - 1].time
+  let fromTime
+  if (typeof lastTime === 'number') {
+    fromTime = lastTime - DEFAULT_RANGE_DAYS * 86400
+  } else {
+    const d = new Date(`${lastTime}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - DEFAULT_RANGE_DAYS)
+    fromTime = d.toISOString().slice(0, 10)
+  }
+  try {
+    chart.timeScale().setVisibleRange({ from: fromTime, to: lastTime })
+  } catch {
+    chart.timeScale().fitContent()
+  }
 }
 
 function updateLegend(param) {
@@ -369,6 +401,7 @@ onBeforeUnmount(() => {
   drawPriceLines.clear()
   drawSeries.clear()
   pendingTrend = null
+  lastRangeKey = null
   legend.value = null
 })
 </script>
