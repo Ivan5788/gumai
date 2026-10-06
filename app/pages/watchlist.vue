@@ -77,7 +77,16 @@
                     <NuxtLink :to="`/stock/${sym}`">{{ sym }}</NuxtLink>
                   </th>
                   <td>{{ quoteMap[sym]?.name ?? '—' }}</td>
-                  <td>{{ quoteMap[sym] ? formatPrice(quoteMap[sym].price) : '—' }}</td>
+                  <td>
+                    <span
+                      v-if="quoteMap[sym]"
+                      :data-limit="limitStatus(quoteMap[sym].changePercent)"
+                      class="price-tag"
+                    >
+                      {{ formatPrice(quoteMap[sym].price) }}
+                    </span>
+                    <template v-else>—</template>
+                  </td>
                   <td :class="trendClass(quoteMap[sym]?.change)">
                     <template v-if="quoteMap[sym]">
                       {{ formatSigned(quoteMap[sym].change) }}（{{ formatPercent(quoteMap[sym].changePercent) }}）
@@ -409,5 +418,19 @@ useHead({ meta: [{ name: 'robots', content: 'noindex' }] })
 
 .is-down {
   color: $color-down;
+}
+
+.price-tag[data-limit='up'] {
+  padding: 0.05rem 0.4rem;
+  border-radius: $radius-sm;
+  background: $color-up;
+  color: #fff;
+}
+
+.price-tag[data-limit='down'] {
+  padding: 0.05rem 0.4rem;
+  border-radius: $radius-sm;
+  background: $color-down;
+  color: #fff;
 }
 </style>

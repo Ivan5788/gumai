@@ -12,8 +12,10 @@
 
 <style lang="scss" scoped>
 .test-notice {
-  border-bottom: 1px solid rgba(#f2c94c, 0.35);
-  background: rgba(#f2c94c, 0.1);
+  // 不用 rgba 透明度——這個區塊跟 AppHeader 一起 sticky 置頂，底下內容往上捲動時
+  // 半透明背景會透出來，疊在一起時字會變得難以閱讀。改用算好的不透明純色。
+  border-bottom: 1px solid mix(#f2c94c, $color-bg, 35%);
+  background: mix(#f2c94c, $color-bg, 10%);
 }
 
 .test-notice__inner {

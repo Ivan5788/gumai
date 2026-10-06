@@ -19,8 +19,13 @@ export const SCREENER_RULES_META = [
   { id: 'retest_ma20', category: 'tech', label: '回測20日線站回', hint: '近期逼近或跌破 20 日均線後，收盤已站回 20 日均線之上' },
   { id: 'ma_golden_cross', category: 'tech', label: '均線黃金交叉', hint: '5 日均線近期上穿 20 日均線' },
   { id: 'break_20d_high', category: 'tech', label: '突破 20 日新高', hint: '收盤價創近 20 日新高' },
-  { id: 'volume_surge', category: 'tech', label: '爆量', hint: '近 10 日成交量達 5 日均量 2 倍以上' },
-  { id: 'gap_up', category: 'tech', label: '跳空上漲', hint: '近 10 日開盤跳空高於前日最高且收紅' },
+  { id: 'volume_surge', category: 'tech', label: '爆量', hint: '當日成交量達前 5 日均量 2 倍以上，且大於昨日成交量' },
+  {
+    id: 'gap_up',
+    category: 'tech',
+    label: '跳空上漲',
+    hint: '當日最低價仍高於前一日最高價（全天都沒有跌破／觸及前日最高價）'
+  },
   { id: 'up_streak_3', category: 'tech', label: '連 3 日上漲', hint: '連續 3 個交易日收漲' },
   { id: 'foreign_buy_streak', category: 'chips', label: '外資連買', hint: '外資連續 3 日買超' },
   { id: 'trust_buy', category: 'chips', label: '投信買超', hint: '投信最近一日買超' },

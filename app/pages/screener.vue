@@ -112,7 +112,9 @@
                 </th>
                 <td>{{ row.name }}</td>
                 <td>{{ scope === 'market' ? (row.listing === 'TPEx' ? '上櫃' : '上市') : row.market === 'TW' ? '台股' : '美股' }}</td>
-                <td>{{ formatPrice(row.price) }}</td>
+                <td>
+                  <span :data-limit="limitStatus(row.changePercent)" class="price-tag">{{ formatPrice(row.price) }}</span>
+                </td>
                 <td :class="trendClass(row.change)">
                   {{ formatSigned(row.change) }}（{{ formatPercent(row.changePercent) }}）
                 </td>
@@ -236,7 +238,7 @@ const poolNote = computed(() => {
       return `上市歷史回補中（目前已有 ${data.value.poolSize} 檔），完成前條件可能還不會有結果，稍後重新整理。`
     }
     const parts = [`涵蓋全市場 ${data.value.poolSize} 檔（上市＋上櫃）`]
-    parts.push(data.value.intraday ? '目前為盤中暫定值（12:00/13:00/13:15 更新）' : '目前為前一交易日收盤結果（15:00 更新當天）')
+    parts.push(data.value.intraday ? '目前為盤中暫定值（9:40/11:00/12:00/13:00/13:15 更新）' : '目前為前一交易日收盤結果（15:00 更新當天）')
     if (data.value.lastTwseDate) parts.push(`上市資料至 ${data.value.lastTwseDate}`)
     if (data.value.lastTpexDate) parts.push(`上櫃資料至 ${data.value.lastTpexDate}`)
     return `${parts.join('，')}。上櫃無官方歷史批次來源，上線後逐日累積，天數不足的均線/新高條件暫不會列入該檔。只支援技術面條件，不含三大法人／大戶持股。`
@@ -512,6 +514,20 @@ useWebPageJsonLd({
 
 .is-down {
   color: $color-down;
+}
+
+.price-tag[data-limit='up'] {
+  padding: 0.05rem 0.4rem;
+  border-radius: $radius-sm;
+  background: $color-up;
+  color: #fff;
+}
+
+.price-tag[data-limit='down'] {
+  padding: 0.05rem 0.4rem;
+  border-radius: $radius-sm;
+  background: $color-down;
+  color: #fff;
 }
 
 .screener__muted {

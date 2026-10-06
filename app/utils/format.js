@@ -47,3 +47,14 @@ export function trendOf(change) {
   if (n === null || n === 0) return 'flat'
   return n > 0 ? 'up' : 'down'
 }
+
+// 是否漲停／跌停（台股漲跌幅限制 10%）。用接近 10% 的門檻而非剛好 10%，
+// 避免因為股價檔位捨入（例如實際漲停是 9.98%）而漏判——漲跌幅理論上不可能
+// 超過 10%，落在 9.5%~10% 這個窄帶幾乎必然就是觸及漲跌停。
+export function limitStatus(changePercent) {
+  const n = toNumber(changePercent)
+  if (n === null) return null
+  if (n >= 9.5) return 'up'
+  if (n <= -9.5) return 'down'
+  return null
+}

@@ -8,6 +8,14 @@
       <span aria-current="page">{{ stock.name }}（{{ stock.symbol }}）</span>
     </nav>
 
+    <div class="mini-quote" :data-trend="trend" :data-limit="limitSt">
+      <span class="mini-quote__symbol">{{ stock.symbol }}</span>
+      <span class="mini-quote__name">{{ stock.name }}</span>
+      <span class="mini-quote__price">{{ formatPrice(quote.price) }}</span>
+      <span class="mini-quote__change">{{ formatSigned(quote.change) }}（{{ formatPercent(quote.changePercent) }}）</span>
+      <span class="mini-quote__volume">量 {{ formatNumber(quote.volume) }}</span>
+    </div>
+
     <header class="page__intro">
       <p class="eyebrow">{{ marketLabel }} · {{ stock.industry }}</p>
       <h1>{{ stock.name }}（{{ stock.symbol }}）股價與即時行情</h1>
@@ -51,7 +59,10 @@
         <dl class="quote" :data-trend="trend">
           <div class="quote__main">
             <dt>成交價</dt>
-            <dd>{{ formatPrice(quote.price) }}</dd>
+            <dd :data-limit="limitSt">
+              {{ formatPrice(quote.price) }}
+              <span v-if="limitSt" class="quote__limit-tag">{{ limitSt === 'up' ? '漲停' : '跌停' }}</span>
+            </dd>
           </div>
           <div class="quote__main">
             <dt>漲跌</dt>
@@ -160,6 +171,7 @@ const {
 // 顯示用報價：優先即時值，其次伺服器初次回傳的快照
 const quote = computed(() => liveQuote.value ?? stock.value.quote ?? {})
 const trend = computed(() => trendOf(quote.value.change))
+const limitSt = computed(() => limitStatus(quote.value.changePercent))
 const quoteDisclaimer = computed(() => {
   if (quote.value.source === 'twse') {
     return '行情為證交所正式收盤資料（含完整成交量），每日固定收盤後更新。'
@@ -317,6 +329,90 @@ h2 {
 
 .quote__main dd {
   font-size: 1.25rem;
+
+  // 漲停／跌停：背景色塊 + 白字，比純粹的紅/綠字更醒目，一眼就能跟一般漲跌分開
+  &[data-limit] {
+    display: inline-flex;
+    align-items: baseline;
+    gap: $space-2;
+    padding: 0.1rem 0.6rem;
+    border-radius: $radius-sm;
+    color: #fff;
+  }
+
+  &[data-limit='up'] {
+    background: $color-up;
+  }
+
+  &[data-limit='down'] {
+    background: $color-down;
+  }
+}
+
+.quote__limit-tag {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+}
+
+.mini-quote {
+  position: sticky;
+  top: var(--pinned-height, 64px);
+  z-index: 15;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: $space-1 $space-3;
+  margin: 0 0 $space-4;
+  padding: $space-2 $space-4;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  // 跟警語同一個原則：不用透明度，滾動時底下的內容才不會透出來疊在一起看不清楚
+  background: $color-surface;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-quote__symbol {
+  font-weight: 700;
+}
+
+.mini-quote__name {
+  color: $color-text-muted;
+}
+
+.mini-quote__price {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.mini-quote__volume {
+  color: $color-text-muted;
+  margin-left: auto;
+}
+
+.mini-quote[data-trend='up'] .mini-quote__price,
+.mini-quote[data-trend='up'] .mini-quote__change {
+  color: $color-up;
+}
+
+.mini-quote[data-trend='down'] .mini-quote__price,
+.mini-quote[data-trend='down'] .mini-quote__change {
+  color: $color-down;
+}
+
+.mini-quote[data-limit='up'] .mini-quote__price {
+  padding: 0.1rem 0.5rem;
+  border-radius: $radius-sm;
+  background: $color-up;
+  color: #fff;
+}
+
+.mini-quote[data-limit='down'] .mini-quote__price {
+  padding: 0.1rem 0.5rem;
+  border-radius: $radius-sm;
+  background: $color-down;
+  color: #fff;
 }
 
 .quote-status {

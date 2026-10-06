@@ -88,24 +88,24 @@ export const RULE_TESTS = {
     return last(candles).close >= hi
   },
 
-  // 近 10 個交易日內出現爆量
+  // 爆量：當日成交量達前 5 日均量 2 倍以上，且大於昨日成交量
+  // （只看當天，不是過去 10 日內任一天——跟均量比較有爆量意義，
+  // 但如果量比昨天還少，不算真的「正在爆量」）。
   volume_surge: ({ candles }) => {
-    if (candles.length < 16) return false
+    if (candles.length < 6) return false
     const vols = candles.map((c) => c.volume)
-    for (let i = candles.length - 10; i < candles.length; i += 1) {
-      const avg = mean(vols.slice(i - 5, i))
-      if (avg > 0 && vols[i] >= avg * 2) return true
-    }
-    return false
+    const n = vols.length
+    const avg5 = mean(vols.slice(n - 6, n - 1))
+    if (avg5 <= 0) return false
+    return vols[n - 1] >= avg5 * 2 && vols[n - 1] > vols[n - 2]
   },
 
-  // 近 10 個交易日內出現跳空上漲
+  // 跳空上漲：今日最低價仍高於前一日最高價，代表當天從開盤到現在都沒有跌破／
+  // 觸及前日最高價（只看當天，用當日最低價判斷，不是只看開盤跳空）。
   gap_up: ({ candles }) => {
-    if (candles.length < 11) return false
-    for (let i = candles.length - 10; i < candles.length; i += 1) {
-      if (candles[i].open > candles[i - 1].high && candles[i].close > candles[i].open) return true
-    }
-    return false
+    if (candles.length < 2) return false
+    const n = candles.length
+    return candles[n - 1].low > candles[n - 2].high
   },
 
   up_streak_3: ({ candles }) => {
