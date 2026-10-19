@@ -49,9 +49,16 @@ export default defineNuxtConfig({
     },
     '/': { prerender: true },
     '/stock': { prerender: true },
-    // 選股 / 訊號的結果會隨盤後指標快照變動，不預渲染；SSR + 短快取
-    '/screener': { swr: 120 },
-    '/signals': { swr: 120 },
+    // 選股 / 訊號：底下 API（screener.get.js、signals.get.js、market-wide.get.js）都明確
+    // 標示 Cache-Control: no-store（結果隨盤中/盤後指標即時變動）。頁面若再包一層 swr，
+    // Nuxt 對有快取的路由會把頁面 HTML 跟 hydration 用的 payload 分成兩個各自獨立計時的
+    // 快取物件（HTML 裡的資料、/_payload.json 抓到的資料不是同一次快照)，兩者只要跨到
+    // 不同次背景資料更新就會不一致，造成 hydration mismatch（親眼驗證過：同一次請求裡
+    // HTML 內嵌的 payload 是空的 isCached 快取版本，/_payload.json 另外抓到的是當下最新
+    // 資料）。這兩頁資料本來就宣告不可快取，不該再套 swr，直接每次 SSR 即可（市場快照本身
+    // 已是記憶體內常駐、低成本的即時物件，不會因為拿掉頁面快取而變貴）。
+    '/screener': {},
+    '/signals': {},
     // 個股頁不預渲染全部，改為 SWR：首次請求時 SSR，之後 5 分鐘內回快取
     '/stock/**': { swr: 300 },
     // 大盤指數頁：官方盤後資料，SSR + 短快取
