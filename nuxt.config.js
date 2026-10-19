@@ -57,8 +57,11 @@ export default defineNuxtConfig({
     // HTML 內嵌的 payload 是空的 isCached 快取版本，/_payload.json 另外抓到的是當下最新
     // 資料）。這兩頁資料本來就宣告不可快取，不該再套 swr，直接每次 SSR 即可（市場快照本身
     // 已是記憶體內常駐、低成本的即時物件，不會因為拿掉頁面快取而變貴）。
-    '/screener': {},
-    '/signals': {},
+    // 拿掉 swr 後若什麼都不設，回應會完全沒有 Cache-Control，瀏覽器對一般重新整理（非強制）
+    // 可能套用自己的heuristic cache 規則，照樣用瀏覽器端的舊快取頁面，等於換一種方式繼續
+    // 發生同樣的新舊資料不一致問題——明確加 no-store 才能保證每次都是真的重新 SSR。
+    '/screener': { headers: { 'Cache-Control': 'no-store' } },
+    '/signals': { headers: { 'Cache-Control': 'no-store' } },
     // 個股頁不預渲染全部，改為 SWR：首次請求時 SSR，之後 5 分鐘內回快取
     '/stock/**': { swr: 300 },
     // 大盤指數頁：官方盤後資料，SSR + 短快取
