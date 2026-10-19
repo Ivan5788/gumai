@@ -37,6 +37,11 @@ const DAILY_TRIGGER_MIN = 15 * 60 // 每天 15:00（台北時間）補官方收�
 // 離收盤越遠，當天價格還有更多變動空間，暫定結果的參考性相對較低。
 const INTRADAY_SLOTS_MIN = [9 * 60 + 40, 11 * 60, 12 * 60, 13 * 60, 13 * 60 + 15]
 const INTRADAY_GRACE_MIN = 30
+// 補洞用：daily trigger 只補「今天」一天，沒有重試機制——如果伺服器那天沒開著
+// （本機開發環境常見）或那天剛好抓失敗，缺口會永遠卡住，變成「漲跌幅」其實是
+// 好幾個交易日的累積變化，數字可能超過 10% 的漲跌停限制，誤導使用者。單次最多
+// 補這麼多天，避免落後太久時一次塞爆節流佇列。
+const CATCHUP_MAX_TRADING_DAYS = 20
 
 // 只有純技術面（只吃K線）的規則適用全市場快篩；籌碼面規則需要法人/持股資料，這裡沒有。
 const TECH_RULE_IDS = SCREENER_RULES_META.filter((r) => r.category === 'tech').map((r) => r.id)
@@ -258,6 +263,58 @@ async function backfillTwse() {
   }
 }
 
+// 實際掃一遍目前資料裡出現過的所有日期——不能只信 meta.lastTwseDate 這種單一
+// 「最後成功日期」的指標：daily trigger 只補「今天」，如果中間曾經缺過幾天
+// （例如伺服器那段時間沒開著），lastTwseDate 照樣會被後來成功的那天推到最新，
+// 讓系統誤以為「已經補到最新」而忽略中間那個洞——這正是一開始抓到的真實案例
+// （10/09 之後缺到 10/16、10/19 才有資料，但 lastTwseDate 已經是 10/19）。
+function knownTwseDates() {
+  const dates = new Set()
+  for (const entry of store.values()) {
+    if (entry.listing !== 'TWSE') continue
+    for (const c of entry.candles) dates.add(c.time)
+  }
+  return dates
+}
+
+function expectedWeekdaysBack(daysBack) {
+  const out = []
+  for (let i = 1; i <= daysBack; i += 1) {
+    const d = new Date()
+    d.setUTCDate(d.getUTCDate() - i)
+    const { dateKey, weekday } = taipeiClock(d)
+    if (weekday !== 0 && weekday !== 6) out.push(dateKey)
+  }
+  return out.sort() // 舊到新
+}
+
+// 只檢查「目前資料裡最舊日期」到「昨天」這段範圍內有沒有缺——比這更早的日期
+// 本來就不在保留範圍內（KEEP_BARS 本來就會把舊K棒修剪掉），不算缺口。
+function findGapDates() {
+  const known = knownTwseDates()
+  if (!known.size) return []
+  const oldest = [...known].sort()[0]
+  return expectedWeekdaysBack(CATCHUP_MAX_TRADING_DAYS + 15)
+    .filter((d) => d >= oldest)
+    .filter((d) => !known.has(d))
+}
+
+// 由舊到新依序補缺口，遇到失敗就停止——下次再觸發會重新掃一次缺口，從同一個
+// 洞繼續補，不會因為某天失敗就跳過，留下中間新的洞。
+async function catchUpMissingDays(dates) {
+  for (const dateKey of dates.slice(0, CATCHUP_MAX_TRADING_DAYS)) {
+    try {
+      const rows = await fetchTwseAllDay(dateKey.replace(/-/g, ''))
+      if (rows && rows.length) {
+        mergeRows(rows)
+        if (!meta.lastTwseDate || dateKey > meta.lastTwseDate) meta.lastTwseDate = dateKey
+      }
+    } catch {
+      break
+    }
+  }
+}
+
 export function ensureMarketWideSnapshot() {
   if (backfilling) return
 
@@ -279,6 +336,24 @@ export function ensureMarketWideSnapshot() {
       trimAndFlag()
       meta.backfillDone = store.size > 0
       meta.rulesVersion = RULES_VERSION
+      await persist()
+    })()
+      .catch(() => {})
+      .finally(() => {
+        backfilling = false
+      })
+    return
+  }
+
+  // 已回補過，但實際掃資料發現中間缺了交易日（例如伺服器那段時間沒開著）：
+  // 先補洞，比盤中/收盤觸發優先，避免「漲跌幅」其實是好幾天的累積變化卻被當成
+  // 單日顯示（這正是一開始發現這個問題的真實案例）。
+  const gapDates = findGapDates()
+  if (gapDates.length) {
+    backfilling = true
+    ;(async () => {
+      await catchUpMissingDays(gapDates)
+      trimAndFlag()
       await persist()
     })()
       .catch(() => {})
