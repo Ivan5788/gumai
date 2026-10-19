@@ -11,11 +11,15 @@
 </template>
 
 <style lang="scss" scoped>
+// Dart Sass 新版把全域的 mix() 等顏色函式標記為 deprecated（改走 sass:color
+// 模組），用舊寫法編譯時會跳警告。這裡改用 color.mix()。
+@use "sass:color";
+
 .test-notice {
   // 不用 rgba 透明度——這個區塊跟 AppHeader 一起 sticky 置頂，底下內容往上捲動時
   // 半透明背景會透出來，疊在一起時字會變得難以閱讀。改用算好的不透明純色。
-  border-bottom: 1px solid mix(#f2c94c, $color-bg, 35%);
-  background: mix(#f2c94c, $color-bg, 10%);
+  border-bottom: 1px solid color.mix(#f2c94c, $color-bg, 35%);
+  background: color.mix(#f2c94c, $color-bg, 10%);
 }
 
 .test-notice__inner {
