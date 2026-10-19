@@ -263,18 +263,18 @@ async function backfillTwse() {
   }
 }
 
-// 實際掃一遍目前資料裡出現過的所有日期——不能只信 meta.lastTwseDate 這種單一
-// 「最後成功日期」的指標：daily trigger 只補「今天」，如果中間曾經缺過幾天
-// （例如伺服器那段時間沒開著），lastTwseDate 照樣會被後來成功的那天推到最新，
-// 讓系統誤以為「已經補到最新」而忽略中間那個洞——這正是一開始抓到的真實案例
-// （10/09 之後缺到 10/16、10/19 才有資料，但 lastTwseDate 已經是 10/19）。
-function knownTwseDates() {
-  const dates = new Set()
+// 統計目前資料裡每個日期、各有多少檔上市股票有資料——不能只看「這天有沒有
+// 出現過」（二元判斷），因為一次抓取可能「部分成功」：那天還是會被計進已知
+// 日期，但其實只有少數股票真的抓到，其餘的都漏了，只看「有沒有出現過」會
+// 完全放過這種部分失敗的狀況，變成要等有人剛好查到那檔漏掉的股票才會發現
+// （使用者這次回報的 bug 本質就是這個，不想之後還要一支一支等人發現才修）。
+function twseDateCoverage() {
+  const counts = new Map()
   for (const entry of store.values()) {
     if (entry.listing !== 'TWSE') continue
-    for (const c of entry.candles) dates.add(c.time)
+    for (const c of entry.candles) counts.set(c.time, (counts.get(c.time) || 0) + 1)
   }
-  return dates
+  return counts
 }
 
 function expectedWeekdaysBack(daysBack) {
@@ -288,15 +288,30 @@ function expectedWeekdaysBack(daysBack) {
   return out.sort() // 舊到新
 }
 
+function median(nums) {
+  if (!nums.length) return 0
+  const sorted = [...nums].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
 // 只檢查「目前資料裡最舊日期」到「昨天」這段範圍內有沒有缺——比這更早的日期
 // 本來就不在保留範圍內（KEEP_BARS 本來就會把舊K棒修剪掉），不算缺口。
+// 判斷「缺」的標準是檔數明顯低於近期典型值（中位數的 85%），不是只看「完全是
+// 0 檔」：個別股票本來就會有零星停資（例如久未交易），佔比很小，不會把中位數
+// 拉低到觸發門檻；但只要是那種「整天的抓取整個失敗或只成功一小部分」的狀況，
+// 檔數會明顯偏低，一樣會被抓出來重新整天補一次（重新抓一次對已經有資料的
+// 股票無害，mergeRows 本來就是用日期當 key 直接覆蓋/補上，不會重複或弄亂）。
 function findGapDates() {
-  const known = knownTwseDates()
-  if (!known.size) return []
-  const oldest = [...known].sort()[0]
-  return expectedWeekdaysBack(CATCHUP_MAX_TRADING_DAYS + 15)
-    .filter((d) => d >= oldest)
-    .filter((d) => !known.has(d))
+  const coverage = twseDateCoverage()
+  if (!coverage.size) return []
+  const oldest = [...coverage.keys()].sort()[0]
+  const expected = expectedWeekdaysBack(CATCHUP_MAX_TRADING_DAYS + 15).filter((d) => d >= oldest)
+
+  const typical = median(expected.map((d) => coverage.get(d) || 0).filter((n) => n > 0))
+  const threshold = typical * 0.85
+
+  return expected.filter((d) => (coverage.get(d) || 0) < threshold)
 }
 
 // 由舊到新依序補缺口，遇到失敗就停止——下次再觸發會重新掃一次缺口，從同一個
