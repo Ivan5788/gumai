@@ -18,7 +18,7 @@
       <div class="user-menu__panel">
         <a v-if="providers?.google" href="/auth/google" class="user-menu__item">使用 Google 登入</a>
         <button v-if="providers?.dev" type="button" class="user-menu__item" @click="onDevLogin">
-          開發使用者登入
+          測試用登入
         </button>
         <p v-if="!providers?.google && !providers?.dev" class="user-menu__hint">
           尚未設定登入方式，請於 .env 填入 Google OAuth 憑證。
