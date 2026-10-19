@@ -183,15 +183,17 @@ const fullPath = computed(() => `/market/weighted/${props.market}`)
   text-align: right;
 }
 
+// :not([data-limit]) 避免跟下面漲跌停的白字規則打架（兩者 specificity 相同，
+// 原本靠程式碼順序決定誰贏，容易因為之後改動順序又壞掉，改成明確排除比較穩）。
 a[data-trend='up'] {
-  .weighted__price,
+  .weighted__price:not([data-limit]),
   .weighted__change {
     color: $color-up;
   }
 }
 
 a[data-trend='down'] {
-  .weighted__price,
+  .weighted__price:not([data-limit]),
   .weighted__change {
     color: $color-down;
   }

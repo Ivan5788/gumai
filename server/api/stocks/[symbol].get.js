@@ -19,6 +19,7 @@ export default defineEventHandler(async (event) => {
   return {
     symbol: stock.symbol,
     market: stock.market,
+    listing: stock.listing ?? null, // 'TWSE'（上市）｜'TPEx'（上櫃）｜null（非台股）
     name: stock.name,
     nameEn: stock.nameEn,
     industry: stock.industry,

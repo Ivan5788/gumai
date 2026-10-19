@@ -17,7 +17,7 @@
     </div>
 
     <header class="page__intro">
-      <p class="eyebrow">{{ marketLabel }} · {{ stock.industry }}</p>
+      <p class="eyebrow">{{ marketFullLabel }} · {{ stock.industry }}</p>
       <h1>{{ stock.name }}（{{ stock.symbol }}）股價與即時行情</h1>
       <WatchlistButton :symbol="stock.symbol" />
       <p class="lede">
@@ -36,7 +36,7 @@
         </div>
         <div>
           <dt>市場</dt>
-          <dd>{{ marketLabel }}</dd>
+          <dd>{{ marketFullLabel }}</dd>
         </div>
         <div>
           <dt>產業</dt>
@@ -190,6 +190,13 @@ const quoteTime = computed(() =>
     : null
 )
 const marketLabel = computed(() => getMarket(stock.value.market)?.label ?? stock.value.market)
+const listingLabel = computed(() =>
+  stock.value.listing === 'TPEx' ? '上櫃' : stock.value.listing === 'TWSE' ? '上市' : null
+)
+// 市場欄位：台股會加註上市／上櫃，美股維持原本只顯示「美股」
+const marketFullLabel = computed(() =>
+  listingLabel.value ? `${marketLabel.value}・${listingLabel.value}` : marketLabel.value
+)
 
 const title = computed(
   () => `${stock.value.name}（${stock.value.symbol}）股價、即時行情與技術分析 | 股脈`
@@ -318,11 +325,14 @@ h2 {
 }
 
 .quote {
-  &[data-trend='up'] .quote__main dd {
+  // :not([data-limit]) 是必要的——沒有這個，這條規則的 specificity 比下面
+  // .quote__main dd[data-limit] 的白字規則還高，漲停時會被蓋成紅底紅字看不清楚
+  // （已經實測踩到這個問題，不是預防性寫法）。
+  &[data-trend='up'] .quote__main dd:not([data-limit]) {
     color: $color-up;
   }
 
-  &[data-trend='down'] .quote__main dd {
+  &[data-trend='down'] .quote__main dd:not([data-limit]) {
     color: $color-down;
   }
 }
@@ -391,12 +401,14 @@ h2 {
   margin-left: auto;
 }
 
-.mini-quote[data-trend='up'] .mini-quote__price,
+// :not([data-limit]) 避免跟下面漲跌停的白字規則打架——同樣的坑在上面
+// .quote 區塊踩過一次（specificity 比較高蓋過去），這裡先一併預防。
+.mini-quote[data-trend='up'] .mini-quote__price:not([data-limit]),
 .mini-quote[data-trend='up'] .mini-quote__change {
   color: $color-up;
 }
 
-.mini-quote[data-trend='down'] .mini-quote__price,
+.mini-quote[data-trend='down'] .mini-quote__price:not([data-limit]),
 .mini-quote[data-trend='down'] .mini-quote__change {
   color: $color-down;
 }
